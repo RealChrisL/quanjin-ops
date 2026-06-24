@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>全謹代書每日營運登記簿</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <link rel="stylesheet" href="./assets/css/styles.css">
+</head>
+<body>
+
+  <!-- 設定閘門：auth.js 填入朱墨印譜設定卡（PAT / BaseID / TableID） -->
+  <div id="setup-gate"></div>
+
+  <!-- 主應用：預設隱藏，auth 成功後由 app.js 顯示 -->
+  <main id="app" hidden>
+
+    <!-- 報頭 -->
+    <header id="masthead">
+      <div class="mh-left">
+        <div class="seal" id="masthead-seal" aria-label="全謹代書印">
+          <span class="seal-grid">
+            <span>全</span><span>謹</span><span>代</span><span>書</span>
+          </span>
+        </div>
+        <div class="mh-title">
+          <h1 class="firm-name">全謹地政士事務所</h1>
+          <p class="ledger-name">每日營運登記簿</p>
+          <p class="roc-date" id="roc-date"></p>
+        </div>
+      </div>
+      <div class="mh-right">
+        <div class="mh-status">
+          <span id="conn-status" class="conn-status" data-online="false">Airtable 即時連線中</span>
+          <span id="processed-count" class="processed-count">本次已處理 0 項</span>
+        </div>
+        <button type="button" id="clear-creds" class="btn-ink">清除憑證</button>
+      </div>
+    </header>
+
+    <!-- 摘要：墨色文書盒 -->
+    <section id="summary" class="summary" aria-label="本日營運摘要"></section>
+
+    <!-- KPI：五格 -->
+    <section id="kpis" class="kpis" aria-label="關鍵指標"></section>
+
+    <!-- 壹 · 本日待辦行動（CTA-first，置頂） -->
+    <section class="board" aria-labelledby="cta-heading">
+      <h2 id="cta-heading" class="sec-head"><span class="sec-num">壹</span>本日待辦行動</h2>
+      <div id="cta-actions" class="cta-actions"></div>
+    </section>
+
+    <!-- 貳 · 客戶佇列 + 成交進度欄 -->
+    <section class="board" aria-labelledby="queue-heading">
+      <h2 id="queue-heading" class="sec-head"><span class="sec-num">貳</span>客戶佇列</h2>
+      <div class="queue-layout">
+        <div class="queue-main">
+          <div class="slicers" role="group" aria-label="佇列切片">
+            <label class="slice-field"><span class="slice-label">類型</span>
+              <select id="slice-type" class="slice-select"></select></label>
+            <label class="slice-field"><span class="slice-label">承辦人</span>
+              <select id="slice-owner" class="slice-select"></select></label>
+            <label class="slice-field"><span class="slice-label">狀態</span>
+              <select id="slice-status" class="slice-select"></select></label>
+          </div>
+          <div class="queue-scroll">
+            <table id="queue" class="queue"></table>
+          </div>
+        </div>
+        <aside id="deal-track" class="deal-track" aria-label="本月成交進度"></aside>
+      </div>
+    </section>
+
+    <!-- 參 · 承辦團隊 -->
+    <section class="board" aria-labelledby="team-heading">
+      <h2 id="team-heading" class="sec-head"><span class="sec-num">參</span>承辦團隊</h2>
+      <div id="team" class="team"></div>
+    </section>
+
+    <!-- 肆 · 營運圖譜 -->
+    <section class="board" aria-labelledby="chart-heading">
+      <h2 id="chart-heading" class="sec-head"><span class="sec-num">肆</span>營運圖譜</h2>
+      <div class="charts">
+        <figure class="chart-cell">
+          <figcaption class="chart-cap">案件類型分布</figcaption>
+          <div class="chart-box"><canvas id="chart-types"></canvas></div>
+        </figure>
+        <figure class="chart-cell">
+          <figcaption class="chart-cap">各承辦人案量</figcaption>
+          <div class="chart-box"><canvas id="chart-owners"></canvas></div>
+        </figure>
+        <figure class="chart-cell">
+          <figcaption class="chart-cap">成交金額趨勢</figcaption>
+          <div class="chart-box"><canvas id="chart-deals"></canvas></div>
+        </figure>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- 同步紀錄：固定角落面板 -->
+  <div id="sync-log" class="sync-log" aria-live="polite" aria-label="同步紀錄"></div>
+
+  <!-- 載入順序（defer）：config → auth → airtable → logic → charts → render → app -->
+  <script src="./assets/js/config.js" defer></script>
+  <script src="./assets/js/auth.js" defer></script>
+  <script src="./assets/js/airtable.js" defer></script>
+  <script src="./assets/js/logic.js" defer></script>
+  <script src="./assets/js/charts.js" defer></script>
+  <script src="./assets/js/render.js" defer></script>
+  <script src="./assets/js/app.js" defer></script>
+</body>
+</html>

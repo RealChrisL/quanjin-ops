@@ -1,0 +1,13 @@
+# 嚴禁提交任何憑證或客戶資料
+.env
+*.env
+*secret*
+*token*
+*.pat
+data/
+*.csv
+*.local.json
+credentials*.json
+.DS_Store
+Thumbs.db
+node_modules/

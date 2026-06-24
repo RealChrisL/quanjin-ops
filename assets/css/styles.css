@@ -1,0 +1,547 @@
+/* =============================================================================
+ * 全謹代書每日營運登記簿 — 朱墨印譜 (cinnabar-ink seal catalogue)
+ * 方形朱印 · 墨底白字 · 民國紀年 · radius:0 · 克制動態
+ * ========================================================================== */
+
+:root {
+  --bg:#ECE6D8;
+  --panel:#F6F1E4;
+  --panel2:#EDE6D5;
+  --ink:#181410;
+  --ink2:#5A5142;
+  --faint:#8C8169;
+  --accent:#C0392B;
+  --gold:#9A7B3F;
+  --ok:#3D6B52;
+  --warn:#A87C1F;
+  --danger:#C0392B;
+  --rule:#D6CDB8;
+  --rule2:#B6A98A;
+  --radius:0;
+  --fd:"Noto Serif TC",serif;
+  --fb:"Noto Sans TC",sans-serif;
+  --fm:"IBM Plex Mono",monospace;
+
+  /* derived */
+  --seal-text:#F6F1E4;
+  --shadow-ink:0 2px 0 0 var(--ink);
+  --gap:16px;
+}
+
+* { box-sizing:border-box; }
+html, body { margin:0; padding:0; }
+
+body {
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--fb);
+  font-size:15px;
+  line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+  /* faint cinnabar ledger grain */
+  background-image:
+    repeating-linear-gradient(0deg, transparent, transparent 31px, rgba(24,20,16,0.03) 31px, rgba(24,20,16,0.03) 32px);
+}
+
+h1, h2, h3 { font-family:var(--fd); margin:0; }
+button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
+:focus-visible { outline:3px solid var(--accent); outline-offset:2px; }
+
+/* ---------- 方形朱印 SEAL ---------- */
+.seal {
+  width:84px; height:84px;
+  background:var(--accent);
+  color:var(--seal-text);
+  border-radius:var(--radius);
+  display:flex; align-items:center; justify-content:center;
+  position:relative;
+  flex:0 0 auto;
+  box-shadow:0 0 0 1px var(--ink);
+}
+/* inner white hairline border */
+.seal::after {
+  content:"";
+  position:absolute; inset:5px;
+  border:1px solid rgba(246,241,228,0.85);
+  border-radius:var(--radius);
+  pointer-events:none;
+}
+.seal-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:1fr 1fr;
+  gap:0;
+  font-family:var(--fd);
+  font-weight:900;
+  font-size:26px;
+  line-height:1;
+  width:100%; height:100%;
+  padding:9px;
+}
+.seal-grid > span {
+  display:flex; align-items:center; justify-content:center;
+}
+
+/* one-time stamp animation */
+#masthead-seal { animation:seal-stamp 620ms cubic-bezier(.2,.9,.25,1.05) 1 both; transform-origin:50% 50%; }
+@keyframes seal-stamp {
+  0%   { transform:scale(1.55) rotate(-7deg); opacity:0; }
+  55%  { transform:scale(0.94) rotate(2deg); opacity:1; }
+  78%  { transform:scale(1.02) rotate(-1deg); }
+  100% { transform:scale(1) rotate(0); opacity:1; }
+}
+
+/* =============================================================================
+ * 設定閘門 SETUP GATE（auth.js 注入；此處備齊樣式）
+ * ========================================================================== */
+.setup-gate-wrap {
+  min-height:100vh;
+  display:flex; align-items:center; justify-content:center;
+  padding:32px 20px;
+}
+.setup-card {
+  background:var(--panel);
+  border:3px solid var(--ink);
+  max-width:480px; width:100%;
+  padding:0;
+  position:relative;
+}
+.setup-card .setup-head {
+  background:var(--ink);
+  color:var(--seal-text);
+  padding:20px 24px;
+  display:flex; align-items:center; gap:16px;
+}
+.setup-card .setup-head .seal { width:60px; height:60px; box-shadow:0 0 0 1px var(--seal-text); }
+.setup-card .setup-head .seal-grid { font-size:18px; padding:6px; }
+.setup-card .setup-head h2 { font-size:21px; }
+.setup-card .setup-head p { margin:2px 0 0; font-size:12.5px; color:var(--rule); font-family:var(--fb); }
+.setup-card .setup-body { padding:24px; }
+.setup-card label { display:block; margin-bottom:14px; }
+.setup-card .setup-field-label {
+  display:block; font-size:13px; font-weight:700; color:var(--ink);
+  margin-bottom:5px; letter-spacing:.5px;
+}
+.setup-card input[type="text"],
+.setup-card input[type="password"] {
+  width:100%; padding:10px 12px;
+  border:2px solid var(--rule2);
+  background:#FCFAF2;
+  color:var(--ink);
+  font-family:var(--fm); font-size:13.5px;
+  border-radius:var(--radius);
+}
+.setup-card input:focus { border-color:var(--accent); outline:none; }
+.setup-note {
+  font-size:12.5px; color:var(--ink2); line-height:1.7;
+  border-left:3px solid var(--gold);
+  padding:8px 0 8px 12px; margin:16px 0;
+  background:var(--panel2);
+}
+.setup-perm {
+  font-size:12px; color:var(--ink2);
+  background:var(--panel2);
+  border:1px solid var(--rule);
+  padding:12px; margin:14px 0;
+}
+.setup-perm code, .setup-note code {
+  font-family:var(--fm); font-size:11.5px;
+  background:var(--bg); padding:1px 5px; border:1px solid var(--rule);
+}
+.setup-perm ul { margin:6px 0 0; padding-left:18px; }
+.setup-perm-title { font-weight:700; color:var(--ink); margin-bottom:4px; }
+.setup-card .setup-error { color:var(--danger); font-weight:700; font-size:12.5px; margin:2px 0 10px; }
+.setup-card .setup-error[hidden] { display:none; }
+#btn-save-creds {
+  width:100%; margin-top:6px;
+  background:var(--accent); color:var(--seal-text);
+  border:2px solid var(--ink);
+  padding:13px; font-size:16px; font-weight:700; letter-spacing:2px;
+}
+#btn-save-creds:hover { background:#A8332699; background:#9c2f24; }
+
+/* =============================================================================
+ * 報頭 MASTHEAD
+ * ========================================================================== */
+#app { max-width:1440px; margin:0 auto; padding:20px 22px 80px; }
+
+#masthead {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:20px; flex-wrap:wrap;
+  border-bottom:3px solid var(--ink);
+  padding-bottom:16px; margin-bottom:18px;
+}
+.mh-left { display:flex; align-items:center; gap:18px; }
+.firm-name { font-size:27px; font-weight:900; line-height:1.1; letter-spacing:2px; }
+.ledger-name { margin:1px 0 0; font-family:var(--fd); font-size:16px; color:var(--ink2); letter-spacing:6px; }
+.roc-date { margin:5px 0 0; font-family:var(--fm); font-size:13px; color:var(--gold); letter-spacing:.5px; }
+.mh-right { display:flex; align-items:flex-end; gap:16px; }
+.mh-status { display:flex; flex-direction:column; align-items:flex-end; gap:4px; text-align:right; }
+.conn-status {
+  font-size:12.5px; font-weight:700;
+  padding:3px 10px;
+  border:1.5px solid var(--rule2); color:var(--faint);
+  display:inline-flex; align-items:center; gap:7px;
+}
+.conn-status::before {
+  content:""; width:8px; height:8px; background:var(--faint);
+  border-radius:var(--radius);
+}
+.conn-status[data-online="true"] { color:var(--ok); border-color:var(--ok); }
+.conn-status[data-online="true"]::before { background:var(--ok); }
+.conn-status[data-online="error"] { color:var(--danger); border-color:var(--danger); }
+.conn-status[data-online="error"]::before { background:var(--danger); }
+.processed-count { font-family:var(--fm); font-size:12px; color:var(--ink2); }
+
+.btn-ink {
+  background:var(--ink); color:var(--seal-text);
+  border:2px solid var(--ink); padding:8px 14px;
+  font-size:13px; font-weight:500;
+}
+.btn-ink:hover { background:#2a231b; }
+
+/* =============================================================================
+ * 區段標題 — 大寫序號
+ * ========================================================================== */
+.board { margin:26px 0; }
+.sec-head {
+  font-size:20px; font-weight:900; letter-spacing:2px;
+  display:flex; align-items:center; gap:12px;
+  border-bottom:2px solid var(--ink);
+  padding-bottom:8px; margin-bottom:16px;
+}
+.sec-num {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:34px; height:34px;
+  background:var(--accent); color:var(--seal-text);
+  font-family:var(--fd); font-weight:900; font-size:19px;
+  box-shadow:0 0 0 1px var(--ink);
+}
+
+/* =============================================================================
+ * 摘要 SUMMARY — 墨色文書盒，朱色左邊條
+ * ========================================================================== */
+.summary {
+  background:var(--panel);
+  border:2px solid var(--ink);
+  border-left:8px solid var(--accent);
+  padding:16px 20px;
+  margin-bottom:18px;
+}
+.summary .sum-text { font-family:var(--fd); font-size:17px; line-height:1.7; color:var(--ink); }
+.summary .sum-figs { margin-top:10px; display:flex; gap:24px; flex-wrap:wrap; font-size:14px; }
+.summary .sum-fig { display:inline-flex; align-items:baseline; gap:7px; }
+.summary .sum-fig b { font-family:var(--fm); font-size:21px; }
+.summary .sum-overdue b { color:var(--danger); }
+.summary .sum-closable b { color:var(--ok); }
+.summary .sum-fig span { color:var(--ink2); font-size:13px; }
+
+/* =============================================================================
+ * KPI — 五格，墨色分隔
+ * ========================================================================== */
+.kpis {
+  display:grid; grid-template-columns:repeat(5,1fr);
+  background:var(--panel);
+  border:2px solid var(--ink);
+}
+.kpi {
+  padding:16px 14px; text-align:center;
+  border-left:2px solid var(--ink);
+  display:flex; flex-direction:column; gap:5px;
+}
+.kpi:first-child { border-left:0; }
+.kpi-num { font-family:var(--fm); font-size:30px; font-weight:500; line-height:1; color:var(--ink); }
+.kpi-label { font-size:12.5px; color:var(--ink2); letter-spacing:1px; }
+.kpi-money .kpi-num { color:var(--gold); font-size:23px; }
+.kpi-risk .kpi-num { color:var(--danger); }
+.kpi-close .kpi-num { color:var(--ok); }
+.kpi-overload .kpi-num { color:var(--warn); }
+
+/* =============================================================================
+ * 壹 · CTA 待辦行動
+ * ========================================================================== */
+.cta-actions { display:flex; flex-direction:column; gap:10px; }
+.cta-row {
+  background:var(--panel);
+  border:2px solid var(--ink);
+  padding:12px 14px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+}
+.cta-row.kind-overdue { border-left:6px solid var(--danger); }
+.cta-row.kind-close   { border-left:6px solid var(--ok); }
+.cta-row.kind-amount  { border-left:6px solid var(--gold); }
+.cta-row .cta-meta { flex:1 1 220px; min-width:0; }
+.cta-row .cta-name { font-weight:700; font-size:15px; }
+.cta-row .cta-name .cta-no { font-family:var(--fm); font-size:12px; color:var(--faint); margin-left:8px; }
+.cta-row .cta-desc { font-size:13px; color:var(--ink2); margin-top:2px; }
+.cta-row .cta-ctrls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+
+.cta {
+  border:2px solid var(--ink);
+  background:var(--panel2); color:var(--ink);
+  padding:8px 14px; font-size:13.5px; font-weight:700;
+  border-radius:var(--radius);
+  display:inline-flex; align-items:center; gap:6px;
+}
+.cta:hover { background:var(--bg); }
+.cta.cta-accent { background:var(--accent); color:var(--seal-text); border-color:var(--ink); }
+.cta.cta-accent:hover { background:#9c2f24; }
+.cta.cta-ink { background:var(--ink); color:var(--seal-text); }
+.cta.cta-ink:hover { background:#2a231b; }
+.cta.cta-ok { background:var(--ok); color:var(--seal-text); }
+.cta.cta-ok:hover { background:#335a45; }
+.cta:disabled { opacity:.45; cursor:not-allowed; background:var(--panel2); color:var(--faint); }
+
+/* inline amount input */
+.amt-input {
+  width:120px; padding:7px 9px;
+  border:2px solid var(--gold); background:#FCFAF2; color:var(--ink);
+  font-family:var(--fm); font-size:14px; border-radius:var(--radius);
+}
+.amt-input:focus { border-color:var(--accent); outline:none; }
+.inline-edit { display:inline-flex; align-items:center; gap:8px; }
+
+/* =============================================================================
+ * 貳 · 佇列 + 切片 + 成交進度欄
+ * ========================================================================== */
+.queue-layout { display:grid; grid-template-columns:1fr 280px; gap:var(--gap); align-items:start; }
+.queue-main { min-width:0; }
+
+.slicers { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+.slice-field { display:inline-flex; align-items:center; gap:6px; }
+.slice-label { font-size:12.5px; font-weight:700; color:var(--ink2); }
+.slice-select {
+  border:2px solid var(--ink); background:var(--panel); color:var(--ink);
+  padding:6px 10px; font-family:var(--fb); font-size:13px;
+  border-radius:var(--radius);
+}
+.slice-select:focus { border-color:var(--accent); outline:none; }
+
+.queue-scroll { overflow:auto; border:2px solid var(--ink); max-height:560px; }
+table.queue { width:100%; border-collapse:collapse; font-size:13.5px; background:var(--panel); }
+
+/* 墨底白字表頭 */
+table.queue thead th {
+  background:var(--ink); color:var(--seal-text);
+  font-family:var(--fd); font-weight:600; font-size:13px; letter-spacing:1px;
+  text-align:left; padding:10px 12px;
+  position:sticky; top:0; z-index:2;
+  border-right:1px solid #3a322820;
+  white-space:nowrap;
+}
+table.queue tbody td {
+  padding:9px 12px;
+  border-bottom:1px solid var(--rule);
+  vertical-align:middle;
+}
+table.queue tbody tr { background:var(--panel); }
+table.queue tbody tr:nth-child(even) { background:var(--panel2); }
+table.queue tbody tr.lvl-overdue td:first-child { box-shadow:inset 3px 0 0 0 var(--accent); }
+table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
+@keyframes row-flash {
+  0%   { background:rgba(192,57,43,.22); }
+  100% { background:transparent; }
+}
+
+/* 方形用印頭像 */
+.avatar {
+  width:30px; height:30px; flex:0 0 auto;
+  background:var(--ink); color:var(--seal-text);
+  border:2px solid var(--ink);
+  border-radius:var(--radius);
+  display:inline-flex; align-items:center; justify-content:center;
+  font-family:var(--fd); font-weight:600; font-size:13px;
+}
+.avatar.unassigned { background:var(--panel2); color:var(--faint); border-color:var(--rule2); }
+.owner-cell { display:inline-flex; align-items:center; gap:8px; }
+.case-no { font-family:var(--fm); font-size:12.5px; color:var(--ink2); }
+.client-name { font-weight:700; }
+.wait-days { font-family:var(--fm); font-weight:500; }
+.wait-days.lvl-overdue { color:var(--danger); }
+.wait-days.lvl-soon { color:var(--warn); }
+
+/* 狀態藥丸 */
+.pill {
+  display:inline-block; padding:2px 9px;
+  font-size:11.5px; font-weight:700; letter-spacing:.5px;
+  border:1.5px solid currentColor; border-radius:var(--radius);
+  white-space:nowrap;
+}
+.pill.overdue { color:var(--danger); background:rgba(192,57,43,.08); }
+.pill.soon    { color:var(--warn);   background:rgba(168,124,31,.10); }
+.pill.ok      { color:var(--ok);     background:rgba(61,107,82,.08); }
+
+.queue-cta-cell { white-space:nowrap; }
+.queue-cta-cell .cta { padding:5px 10px; font-size:12.5px; }
+
+.empty-state {
+  padding:26px 18px; text-align:center;
+  font-family:var(--fd); font-size:15px; color:var(--ink2);
+  background:var(--panel);
+}
+.empty-state .empty-mark { color:var(--ok); font-weight:700; }
+
+/* 成交進度欄 */
+.deal-track {
+  border:2px solid var(--ink);
+  background:var(--panel);
+  padding:14px;
+}
+.deal-track h3 {
+  font-size:15px; font-weight:900; letter-spacing:1px;
+  border-bottom:2px solid var(--ink); padding-bottom:6px; margin-bottom:10px;
+}
+.deal-amount { font-family:var(--fm); font-size:26px; color:var(--gold); line-height:1.1; }
+.deal-amount-label { font-size:12px; color:var(--ink2); }
+.deal-target { font-size:12.5px; color:var(--ink2); margin-top:4px; }
+.deal-bar { height:10px; background:var(--panel2); border:1.5px solid var(--ink); margin:8px 0 14px; }
+.deal-bar > span { display:block; height:100%; background:var(--gold); }
+.deal-sub { margin-top:10px; }
+.deal-sub h4 {
+  font-size:12.5px; font-weight:700; color:var(--ink2); margin:0 0 6px;
+  border-bottom:1px solid var(--rule); padding-bottom:3px;
+}
+.deal-sub ul { list-style:none; margin:0 0 12px; padding:0; }
+.deal-sub li {
+  display:flex; justify-content:space-between; gap:8px;
+  font-size:13px; padding:3px 0;
+}
+.deal-sub li .dl-no { font-family:var(--fm); font-size:11.5px; color:var(--faint); }
+.deal-sub.closable li b { color:var(--ok); }
+.deal-sub.pending  li b { color:var(--gold); }
+.deal-empty { font-size:12.5px; color:var(--faint); font-family:var(--fd); }
+
+/* =============================================================================
+ * 參 · 承辦團隊 — 方形卡
+ * ========================================================================== */
+.team { display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:var(--gap); }
+.team-card {
+  border:2px solid var(--ink); background:var(--panel);
+  padding:14px; position:relative;
+  display:flex; flex-direction:column; gap:10px;
+}
+.team-card.overload { border-color:var(--accent); }
+.team-card.overload::after {
+  content:"超載"; position:absolute; top:0; right:0;
+  background:var(--accent); color:var(--seal-text);
+  font-size:11px; font-weight:700; padding:2px 8px; letter-spacing:1px;
+}
+.team-head { display:flex; align-items:center; gap:10px; }
+.team-head .avatar { width:40px; height:40px; font-size:17px; }
+.team-name { font-weight:700; font-size:15px; }
+.team-load-label { font-size:11.5px; color:var(--faint); }
+.team-stats { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.team-stat { text-align:center; padding:6px 4px; background:var(--panel2); border:1px solid var(--rule); }
+.team-stat b { display:block; font-family:var(--fm); font-size:19px; line-height:1.1; }
+.team-stat span { font-size:11px; color:var(--ink2); }
+.team-stat.active b { color:var(--ink); }
+.team-stat.overdue b { color:var(--danger); }
+.team-meta { font-size:12px; color:var(--ink2); }
+.team-meta .tm-resp { font-family:var(--fm); }
+
+/* =============================================================================
+ * 肆 · 圖譜
+ * ========================================================================== */
+.charts { display:grid; grid-template-columns:repeat(3,1fr); gap:var(--gap); }
+.chart-cell {
+  margin:0; border:2px solid var(--ink); background:var(--panel); padding:14px;
+  display:flex; flex-direction:column; min-width:0;
+}
+.chart-cap {
+  font-family:var(--fd); font-weight:600; font-size:14px; letter-spacing:1px;
+  border-bottom:2px solid var(--ink); padding-bottom:6px; margin-bottom:12px;
+}
+.chart-box { position:relative; height:240px; overflow:hidden; }
+.chart-box canvas { max-width:100% !important; }
+
+/* =============================================================================
+ * 同步紀錄 — 固定角落
+ * ========================================================================== */
+.sync-log {
+  position:fixed; right:14px; bottom:14px; z-index:40;
+  width:300px; max-width:calc(100vw - 28px);
+  max-height:230px; overflow:auto;
+  background:var(--ink); color:var(--seal-text);
+  border:2px solid var(--ink); box-shadow:0 4px 0 0 rgba(24,20,16,.35);
+  font-family:var(--fm); font-size:11.5px;
+  padding:8px 10px;
+}
+.sync-log:empty { display:none; }
+.sync-log .sl-head {
+  font-family:var(--fb); font-weight:700; font-size:11px; letter-spacing:2px;
+  color:var(--rule); border-bottom:1px solid #3a3228; padding-bottom:4px; margin-bottom:6px;
+}
+.sync-log .sl-line { display:flex; gap:7px; padding:2px 0; line-height:1.4; }
+.sync-log .sl-time { color:var(--faint); flex:0 0 auto; }
+.sync-log .sl-mark { flex:0 0 auto; font-weight:700; }
+.sync-log .sl-line.ok  .sl-mark { color:#7fb695; }
+.sync-log .sl-line.err .sl-mark { color:#e0837a; }
+.sync-log .sl-msg { word-break:break-word; }
+
+/* =============================================================================
+ * Toast
+ * ========================================================================== */
+.qj-toasts {
+  position:fixed; top:16px; left:50%; transform:translateX(-50%);
+  z-index:60; display:flex; flex-direction:column; gap:8px; align-items:center;
+  pointer-events:none;
+}
+.qj-toast {
+  background:var(--ink); color:var(--seal-text);
+  border:2px solid var(--ink); border-left-width:6px;
+  padding:10px 16px; font-size:13.5px; font-weight:500;
+  box-shadow:0 3px 0 0 rgba(24,20,16,.3);
+  animation:toast-in 200ms ease-out 1 both;
+  pointer-events:auto;
+}
+.qj-toast.ok     { border-left-color:var(--ok); }
+.qj-toast.warn   { border-left-color:var(--warn); }
+.qj-toast.danger { border-left-color:var(--danger); }
+.qj-toast.info   { border-left-color:var(--gold); }
+@keyframes toast-in { 0% { opacity:0; transform:translateY(-8px); } 100% { opacity:1; transform:translateY(0); } }
+
+/* =============================================================================
+ * RWD 360 → 1440
+ * ========================================================================== */
+@media (max-width:1080px) {
+  .queue-layout { grid-template-columns:1fr; }
+  .deal-track { order:-1; }
+  .charts { grid-template-columns:1fr; }
+  .kpis { grid-template-columns:repeat(5,1fr); }
+}
+@media (max-width:760px) {
+  #app { padding:16px 14px 80px; }
+  #masthead { gap:12px; }
+  .firm-name { font-size:22px; }
+  .mh-right { width:100%; justify-content:space-between; align-items:flex-end; }
+  .kpis { grid-template-columns:repeat(2,1fr); }
+  .kpi { border-left:2px solid var(--ink); }
+  .kpi:nth-child(2n+1) { border-left:0; }
+  .kpi:nth-child(n+3) { border-top:2px solid var(--ink); }
+  .kpi-money { grid-column:1 / -1; }
+  .team { grid-template-columns:1fr 1fr; }
+  .sync-log { width:calc(100vw - 28px); max-height:160px; }
+}
+@media (max-width:430px) {
+  body { font-size:14px; }
+  .seal { width:64px; height:64px; }
+  .seal-grid { font-size:19px; padding:6px; }
+  .firm-name { font-size:19px; letter-spacing:1px; }
+  .ledger-name { letter-spacing:3px; font-size:14px; }
+  .kpis { grid-template-columns:1fr 1fr; }
+  .team { grid-template-columns:1fr; }
+  .cta-row { gap:10px; }
+  .cta-row .cta-ctrls { width:100%; }
+  table.queue { font-size:12.5px; }
+  table.queue tbody td, table.queue thead th { padding:7px 8px; }
+}
+
+/* =============================================================================
+ * 克制動態 — prefers-reduced-motion
+ * ========================================================================== */
+@media (prefers-reduced-motion:reduce) {
+  #masthead-seal { animation:none; }
+  table.queue tbody tr.row-new { animation:none; background:rgba(192,57,43,.10); }
+  .qj-toast { animation:none; }
+  * { scroll-behavior:auto !important; }
+}
