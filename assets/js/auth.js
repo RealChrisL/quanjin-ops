@@ -92,6 +92,8 @@
     lsRemove(LS.baseId);
     lsRemove(LS.tableId);
     lsRemove(LS.fieldMap);
+    lsRemove(LS.proxyUrl);
+    lsRemove(LS.proxyToken);
     // 清掉記憶體中的 fieldMap，避免清憑證後仍殘留欄位對應
     if (QJ.airtable) { QJ.airtable.fieldMap = null; }
     showGate();
@@ -104,7 +106,12 @@
     if (!host) { return; }
 
     var creds = getCreds();
+    var patVal = esc(creds.pat || "");
+    var baseVal = esc(creds.baseId || "");
     var tableVal = esc(creds.tableId || SETTINGS.defaultTableId);
+    var proxyUrlVal = esc((QJ.proxyUrl && QJ.proxyUrl()) || "");
+    var hasProxyToken = !!(QJ.proxyToken && QJ.proxyToken());
+    var proxyTokenPH = hasProxyToken ? "已設定（留空＝保留原密鑰）" : "貼上代理密鑰";
 
     host.innerHTML =
       '<div class="setup-gate-wrap">' +
@@ -115,11 +122,20 @@
           '</div>' +
           '<div class="setup-body">' +
             '<label for="in-pat"><span class="setup-field-label">Airtable Personal Access Token</span>' +
-              '<input id="in-pat" type="password" autocomplete="off" spellcheck="false" placeholder="pat..." /></label>' +
+              '<input id="in-pat" type="password" autocomplete="off" spellcheck="false" value="' + patVal + '" placeholder="pat..." /></label>' +
             '<label for="in-base"><span class="setup-field-label">Base ID</span>' +
-              '<input id="in-base" type="text" autocomplete="off" spellcheck="false" placeholder="app..." /></label>' +
+              '<input id="in-base" type="text" autocomplete="off" spellcheck="false" value="' + baseVal + '" placeholder="app..." /></label>' +
             '<label for="in-table"><span class="setup-field-label">Table ID</span>' +
               '<input id="in-table" type="text" autocomplete="off" spellcheck="false" value="' + tableVal + '" placeholder="tbl..." /></label>' +
+
+            '<details class="setup-adv"' + (proxyUrlVal ? ' open' : '') + '>' +
+              '<summary>進階設定 · 團隊寫入代理（選填）</summary>' +
+              '<label for="in-proxy-url"><span class="setup-field-label">寫入代理網址</span>' +
+                '<input id="in-proxy-url" type="text" autocomplete="off" spellcheck="false" value="' + proxyUrlVal + '" placeholder="https://...ngrok-free.dev" /></label>' +
+              '<label for="in-proxy-token"><span class="setup-field-label">寫入代理密鑰</span>' +
+                '<input id="in-proxy-token" type="password" autocomplete="off" spellcheck="false" placeholder="' + proxyTokenPH + '" /></label>' +
+              '<p class="setup-note">填了才會啟用「改派」即時通知同仁與自動接管；留空則改派只更新欄位、不另行通知。</p>' +
+            '</details>' +
 
             '<div class="setup-error" id="setup-error" hidden></div>' +
 
@@ -181,6 +197,12 @@
     }
 
     save(pat, baseId, tableId);
+    // 寫入代理（選填）：URL 有填就存、清空就移除；密鑰留空＝保留原密鑰，有填才覆寫
+    var proxyUrlEl = el("in-proxy-url"), proxyTokEl = el("in-proxy-token");
+    var proxyUrl = proxyUrlEl ? proxyUrlEl.value.trim() : "";
+    var proxyTok = proxyTokEl ? proxyTokEl.value.trim() : "";
+    if (proxyUrl) { lsSet(LS.proxyUrl, proxyUrl); } else { lsRemove(LS.proxyUrl); }
+    if (proxyTok) { lsSet(LS.proxyToken, proxyTok); }
     showApp();
 
     // 交棒給 orchestrator；app.js 尚未載入時不報錯（防禦式呼叫）
@@ -202,6 +224,15 @@
       if (hit) {
         ev.preventDefault();
         clear();
+        return;
+      }
+      // 「連線設定」：重開 Setup Gate（欄位預填，不清憑證）→ 可補填寫入代理
+      var settingsHit = (t.id === "open-settings") ||
+                (typeof t.closest === "function" && t.closest("#open-settings"));
+      if (settingsHit) {
+        ev.preventDefault();
+        showGate();
+        renderSetupGate();
       }
     });
   }
