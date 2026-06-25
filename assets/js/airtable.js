@@ -266,13 +266,24 @@
     return { date: null, field: "" };
   }
 
+  /* 委託人顯示名：跨多個姓名欄位依序取「第一個有值的值」（備註 > 姓名 > … > 顯示名稱），
+   * 對齊 bot 的 display_name.for_admin 後備邏輯；單一欄位為空時不會顯示「未具名」。 */
+  function coalesceName(rawFields) {
+    var cands = (DEFAULTS && DEFAULTS["委託人"]) || [];
+    for (var i = 0; i < cands.length; i++) {
+      var v = toStr(rawFields[cands[i]]);
+      if (v) { return v; }
+    }
+    return "";
+  }
+
   function _normalize(raw, fieldMap) {
     var f = (raw && raw.fields) || {};
     var li = reconcileLastInteraction(f, fieldMap);
 
     return {
       id: raw && raw.id ? raw.id : "",
-      委託人:   toStr(mapped(f, fieldMap, "委託人")),
+      委託人:   coalesceName(f) || toStr(mapped(f, fieldMap, "委託人")),
       案件類型: toStr(mapped(f, fieldMap, "案件類型")),
       承辦人:   toStr(mapped(f, fieldMap, "承辦人")),
       狀態:     toStr(mapped(f, fieldMap, "狀態")),
@@ -280,6 +291,7 @@
       結案日期: toDate(mapped(f, fieldMap, "結案日期")),
       案號:     toStr(mapped(f, fieldMap, "案號")),
       案件說明: toStr(mapped(f, fieldMap, "案件說明")),
+      待辦事項: toStr(mapped(f, fieldMap, "待辦事項")),
       建立時間: toDate(mapped(f, fieldMap, "建立時間")),
       lastInteraction: li.date,
       lastInteractionField: li.field,

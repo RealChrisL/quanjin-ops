@@ -52,10 +52,17 @@
     if (/[一-鿿]/.test(s)) return s.slice(-1);
     return s.slice(0, 1).toUpperCase();
   }
+  /* 承辦人顯示名：從「名字 (uid)」取出名字（對齊 bot 委派團隊成員格式）；無括號則原樣回傳。 */
+  function displayOwner(raw) {
+    var s = String(raw == null ? "" : raw);
+    var m = s.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
+    return (m && m[1].trim()) ? m[1].trim() : s;
+  }
   function avatar(name, opts) {
-    var a = el("span", "avatar", initials(name));
+    var disp = displayOwner(name);
+    var a = el("span", "avatar", initials(disp));
     if (!name || /未指派|未分派|無/.test(String(name))) { a.classList.add("unassigned"); a.textContent = "—"; }
-    if (opts && opts.title) a.title = name || "未指派";
+    if (opts && opts.title) a.title = disp || "未指派";
     a.setAttribute("aria-hidden", "true");
     return a;
   }
@@ -172,25 +179,40 @@
     });
   }
 
+  /* 該筆 Airtable 紀錄連結（base/table 來自憑證，recordId 來自 act）。 */
+  function airtableUrl(id) {
+    try {
+      var c = (window.QJ && QJ.auth && QJ.auth.getCreds) ? QJ.auth.getCreds() : {};
+      if (!c || !c.baseId || !c.tableId || !id) return null;
+      return "https://airtable.com/" + c.baseId + "/" + c.tableId + "/" + id;
+    } catch (e) { return null; }
+  }
+
   function buildActionRow(act) {
     var rec = act.rec || {};
+    var id = act.id || rec.id;
     var row = el("div", "cta-row kind-" + (act.kind || "overdue"));
-    row.setAttribute("data-id", act.id || rec.id || "");
+    row.setAttribute("data-id", id || "");
 
     var meta = el("div", "cta-meta");
     var name = el("div", "cta-name", rec.委託人 || "未具名委託人");
-    if (rec.案號) {
-      var no = el("span", "cta-no", rec.案號);
-      name.appendChild(no);
-    }
+    if (rec.案號) name.appendChild(el("span", "cta-no", rec.案號));
     meta.appendChild(name);
     meta.appendChild(el("div", "cta-desc",
       (ACTION_KIND_LABEL[act.kind] || "") + "｜" + (act.label || rec.案件類型 || "")));
+
+    // 等候時間 ＋ 待辦事項（行動上下文）
+    var extra = el("div", "cta-extra");
+    if (act.waitLabel) extra.appendChild(el("span", "cta-chip cta-wait", "已等 " + act.waitLabel));
+    var todos = rec.待辦事項 ? String(rec.待辦事項) : "";
+    if (todos) {
+      if (todos.length > 64) todos = todos.slice(0, 64) + "…";
+      extra.appendChild(el("span", "cta-chip cta-todo", "待辦：" + todos));
+    }
+    if (extra.childNodes.length) meta.appendChild(extra);
     row.appendChild(meta);
 
     var ctrls = el("div", "cta-ctrls");
-    var id = act.id || rec.id;
-
     if (act.kind === "pending" || act.kind === "overdue") {
       ctrls.appendChild(ctaContacted(id));
       ctrls.appendChild(ctaButton("標記可結案", "close", id, "cta-ok"));
@@ -200,6 +222,16 @@
     } else if (act.kind === "amount") {
       ctrls.appendChild(ctaButton("補成交金額", "amount", id, "cta-accent"));
     }
+    var rs = reassignSelect(id);
+    if (rs) ctrls.appendChild(rs);
+    var url = airtableUrl(id);
+    if (url) {
+      var lk = el("a", "cta cta-link", "🔗 詳情");
+      lk.setAttribute("href", url);
+      lk.setAttribute("target", "_blank");
+      lk.setAttribute("rel", "noopener noreferrer");
+      ctrls.appendChild(lk);
+    }
     row.appendChild(ctrls);
     return row;
   }
@@ -207,7 +239,7 @@
   /* =============================================================================
    * 貳 · 切片下拉
    * ========================================================================== */
-  function fillSelect(sel, values, allLabel, current) {
+  function fillSelect(sel, values, allLabel, current, labelFn) {
     if (!sel) return;
     var prev = current != null ? current : sel.value;
     clear(sel);
@@ -216,7 +248,7 @@
     sel.appendChild(optAll);
     (values || []).forEach(function (v) {
       if (v == null || v === "") return;
-      var o = el("option", null, v);
+      var o = el("option", null, labelFn ? labelFn(v) : v);
       o.value = v;
       sel.appendChild(o);
     });
@@ -230,7 +262,8 @@
   function renderSlicers(state) {
     var sl = state.slices || { types: [], owners: [], statuses: [] };
     fillSelect($("slice-type"), sl.types, "全部類型", R._filters.type);
-    fillSelect($("slice-owner"), sl.owners, "全部承辦人", R._filters.owner);
+    R._owners = sl.owners || [];
+    fillSelect($("slice-owner"), sl.owners, "全部承辦人", R._filters.owner, displayOwner);
     fillSelect($("slice-status"),
       (sl.statuses || []).map(statusDisplay).length ? sl.statuses : sl.statuses,
       "全部狀態", R._filters.status);
@@ -291,7 +324,7 @@
     var tdOwner = el("td");
     var oc = el("span", "owner-cell");
     oc.appendChild(avatar(rec.承辦人, { title: true }));
-    oc.appendChild(el("span", null, rec.承辦人 || "未指派"));
+    oc.appendChild(el("span", null, displayOwner(rec.承辦人) || "未指派"));
     tdOwner.appendChild(oc);
     tr.appendChild(tdOwner);
 
@@ -315,16 +348,33 @@
     return tr;
   }
 
+  /* 改派下拉：來源＝資料中既有的承辦人「名字 (uid)」；寫回保留原格式以相容 bot。 */
+  function reassignSelect(id) {
+    if (!(window.QJ && QJ.REASSIGN_ENABLED === true)) return null;
+    var owners = (R._owners || []).filter(Boolean);
+    if (!owners.length) return null;
+    var sel = el("select", "reassign-select");
+    sel.setAttribute("data-id", id || "");
+    sel.setAttribute("title", "改派承辦人");
+    var ph = el("option", null, "改派…"); ph.value = ""; sel.appendChild(ph);
+    owners.forEach(function (raw) {
+      var o = el("option", null, displayOwner(raw)); o.value = raw; sel.appendChild(o);
+    });
+    return sel;
+  }
+
   function buildQueueCta(item) {
     var rec = item.rec || {};
     var next = item.nextCTA || { type: "contacted", label: "標記已聯繫" };
     var id = rec.id;
     var t = next.type;
-    if (t === "close") return ctaButton(next.label || "結案", "close", id, "cta-ok");
-    if (t === "amount") return ctaButton(next.label || "補金額", "amount", id, "cta-accent");
-    if (t === "reassign") return ctaReassign(id);
-    // 預設 contacted
-    return ctaButton(next.label || "標記已聯繫", "contacted", id, "cta-ink");
+    var wrap = el("span", "qcta-wrap");
+    if (t === "close") wrap.appendChild(ctaButton(next.label || "結案", "close", id, "cta-ok"));
+    else if (t === "amount") wrap.appendChild(ctaButton(next.label || "補金額", "amount", id, "cta-accent"));
+    else wrap.appendChild(ctaButton(next.label || "標記已聯繫", "contacted", id, "cta-ink"));
+    var rs = reassignSelect(id);
+    if (rs) wrap.appendChild(rs);
+    return wrap;
   }
 
   // 列簽章：用於 diffUpdate 判斷是否需重繪該列
@@ -427,7 +477,7 @@
       var head = el("div", "team-head");
       head.appendChild(avatar(t.owner, { title: true }));
       var hwrap = el("div");
-      hwrap.appendChild(el("div", "team-name", t.owner || "未指派"));
+      hwrap.appendChild(el("div", "team-name", displayOwner(t.owner) || "未指派"));
       hwrap.appendChild(el("div", "team-load-label", "負荷指數 " + (t.load != null ? t.load : "—")));
       head.appendChild(hwrap);
       card.appendChild(head);

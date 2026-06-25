@@ -123,6 +123,14 @@
     showApp();
 
     document.addEventListener("click", onClick);
+    document.addEventListener("change", function (ev) {
+      var t = ev.target;
+      if (t && t.classList && t.classList.contains("reassign-select")) {
+        var rid = t.getAttribute("data-id"), val = t.value;
+        if (rid && val) doPatch(rid, { 承辦人: val }, function (r) { r.承辦人 = val; }, "改派承辦人");
+        t.value = "";
+      }
+    });
     ["slice-type", "slice-owner", "slice-status"].forEach(function (id) {
       var el = document.getElementById(id); if (el) el.addEventListener("change", onSliceChange);
     });

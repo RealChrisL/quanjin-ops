@@ -126,16 +126,6 @@
             '<button id="btn-save-creds" type="button">啟用登記簿</button>' +
 
             '<p class="setup-note">資料只在 Airtable 與本機之間直連，不經第三方。憑證僅存於這台瀏覽器，可隨時清除。公開網址不存放任何客戶資料——沒有權杖什麼都看不到。</p>' +
-
-            '<div class="setup-perm">' +
-              '<div class="setup-perm-title">權杖（PAT）權限指引</div>' +
-              '<ul>' +
-                '<li>在 Airtable 建立 scoped Personal Access Token（不要用舊版 API key）。</li>' +
-                '<li>僅授權這一個 Base，不要全帳號授權。</li>' +
-                '<li>僅勾三個 scope：data.records:read、data.records:write、schema.bases:read。</li>' +
-                '<li>建議僅於 CEO 自有裝置使用；公開網址請勿外流，權杖等同帳號鑰匙。</li>' +
-              '</ul>' +
-            '</div>' +
           '</div>' +
         '</div>' +
       '</div>';

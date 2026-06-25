@@ -359,13 +359,13 @@
     var actions = [];
     pendingRows.forEach(function (q) {
       actions.push({
-        id: q.rec.id, kind: "pending", rec: q.rec,
+        id: q.rec.id, kind: "pending", rec: q.rec, waitLabel: q.waitLabel,
         label: "待回覆：" + (toStr(q.rec.委託人) || "（未具名）") + "（客戶已等 " + q.waitLabel + "）",
       });
     });
     overdueRows.forEach(function (q) {
       actions.push({
-        id: q.rec.id, kind: "overdue", rec: q.rec,
+        id: q.rec.id, kind: "overdue", rec: q.rec, waitLabel: q.waitLabel,
         label: "逾期跟進：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitLabel + "未互動）",
       });
     });

@@ -42,6 +42,7 @@ QJ.FIELD_MAP_DEFAULTS = {
   結案日期: ["結案日期","結案日","Closed Date"],
   案號:     ["案號","案件編號","Case No","編號"],
   案件說明: ["需求摘要","對話摘要","案件說明","摘要","Notes"],
+  待辦事項: ["待辦事項","待辦","代辦事項","To-Do","Todos"],
   建立時間: ["建立時間","建檔時間","Created","Created time"],
   // 上次互動時間 = 客戶互動訊號（reconcileLastInteraction 依此「優先序」取第一個有值，非取最新）。
   // 刻意排除 最後音檔時間 / 最後修改時間 / Last Modified——那些是團隊端或被動更新，
@@ -55,7 +56,7 @@ QJ.FIELD_MAP_DEFAULTS = {
  * contacted : 最後互動時間=now(ISO 8601)
  * reassign  : 承辦人=「名字 (uid)」  ← bot 解析格式；v1 停用（fast-follow，待確認欄位型別）
  */
-QJ.REASSIGN_ENABLED = false; // v1：先上 結案／補金額／標記已聯繫 三個安全 CTA
+QJ.REASSIGN_ENABLED = true; // 改派啟用：下拉來源＝資料中既有承辦人「名字 (uid)」，寫回保留格式相容 bot
 
 /* ---- 民國紀年工具（全 UI 共用）---- */
 QJ.rocDate = function (d) {
