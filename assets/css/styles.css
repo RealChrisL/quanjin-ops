@@ -278,6 +278,7 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 .reassign-select { font-family:var(--fb); font-size:12px; border:1px solid var(--rule2); background:var(--panel); color:var(--ink); padding:3px 6px; border-radius:0; }
 .chart-time-sel { float:right; font-family:var(--fb); font-size:11px; border:1px solid var(--rule2); background:var(--panel); color:var(--ink2); padding:1px 5px; border-radius:0; }
 .cta-chip.cta-value { color:var(--gold); border-color:var(--gold); font-weight:600; }
+.cta-todo-line { margin-top:5px; font-size:12px; color:var(--ink2); line-height:1.6; white-space:normal; }
 .cta-row.kind-close   { border-left:6px solid var(--ok); }
 .cta-row.kind-amount  { border-left:6px solid var(--gold); }
 .cta-row .cta-meta { flex:1 1 220px; min-width:0; }

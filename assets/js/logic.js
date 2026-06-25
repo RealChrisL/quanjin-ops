@@ -477,7 +477,9 @@
     var typeSeries = [];
     for (var ts = 0; ts < active.length; ts++) {
       var rt = active[ts], tty = toStr(rt.案件類型);
-      if (tty) typeSeries.push({ type: tty, created: (rt.建立時間 && rt.建立時間.getTime) ? rt.建立時間.getTime() : null });
+      if (!tty) continue;
+      var ct = toDate(rt.首次進線時間) || toDate(rt.建立時間); // CRM 無「建立時間」欄 → 用首次進線時間
+      typeSeries.push({ type: tty, created: ct ? ct.getTime() : null });
     }
 
     // ---- deals：本月逐日累計成交金額 ----

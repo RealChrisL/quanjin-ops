@@ -301,7 +301,7 @@
       待辦事項: toStr(mapped(f, fieldMap, "待辦事項")),
       首次進線時間: toDate(mapped(f, fieldMap, "首次進線時間")),
       首次回應時間: toDate(mapped(f, fieldMap, "首次回應時間")),
-      建立時間: toDate(mapped(f, fieldMap, "建立時間")),
+      建立時間: toDate(mapped(f, fieldMap, "建立時間")) || toDate(raw && raw.createdTime),
       lastInteraction: li.date,
       lastInteractionField: li.field,
       fields: f // 原始 fields 唯讀備援

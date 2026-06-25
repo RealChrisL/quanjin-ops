@@ -221,12 +221,12 @@
     if (act.waitLabel) extra.appendChild(el("span", "cta-chip cta-wait", "已等 " + act.waitLabel));
     var cv = (window.QJ && QJ.caseValue) ? QJ.caseValue(rec.案件類型) : null;
     if (cv) extra.appendChild(el("span", "cta-chip cta-value", "約值 NT$" + cv.toLocaleString("en-US") + (act.kind === "overdue" ? "・正在變冷" : "")));
-    var todos = rec.待辦事項 ? String(rec.待辦事項) : "";
-    if (todos) {
-      if (todos.length > 64) todos = todos.slice(0, 64) + "…";
-      extra.appendChild(el("span", "cta-chip cta-todo", "待辦：" + todos));
-    }
     if (extra.childNodes.length) meta.appendChild(extra);
+    var todos = rec.待辦事項 ? String(rec.待辦事項).replace(/\s*\n+\s*/g, "；").trim() : "";
+    if (todos) {
+      if (todos.length > 200) todos = todos.slice(0, 200) + "…";
+      meta.appendChild(el("div", "cta-todo-line", "待辦：" + todos));
+    }
     row.appendChild(meta);
 
     var ctrls = el("div", "cta-ctrls");
