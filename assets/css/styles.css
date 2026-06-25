@@ -397,6 +397,8 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 .pill.overdue { color:var(--danger); background:rgba(192,57,43,.08); }
 .pill.soon    { color:var(--warn);   background:rgba(168,124,31,.10); }
 .pill.ok      { color:var(--ok);     background:rgba(61,107,82,.08); }
+.status-select { cursor:pointer; font:inherit; font-size:12px; padding:2px 4px; border:1px solid transparent; border-radius:0; }
+.status-select:hover { border-color:rgba(24,20,16,.28); }
 
 .queue-cta-cell { white-space:nowrap; }
 .queue-cta-cell .cta { padding:5px 10px; font-size:12.5px; }

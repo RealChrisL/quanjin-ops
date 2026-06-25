@@ -131,6 +131,25 @@
     QJ.render.applyFilters && QJ.render.applyFilters({ type: val("slice-type"), owner: val("slice-owner"), status: val("slice-status") });
   }
 
+  /* 客戶佇列「狀態」下拉變更 → 經 proxy 走 bot：人工接管中=接管、跟進中=恢復、已完成=結案 */
+  function onStatusChange(t) {
+    var id = t.getAttribute("data-id"), cur = t.getAttribute("data-current"), next = t.value;
+    if (!id || !next || next === cur) return;
+    var rec = findRec(id), nm = (rec && rec.委託人) || "此案";
+    var S = QJ.STATUS, action, label, confirmMsg;
+    if (next === S.HUMAN) { action = "takeover"; label = "接管"; }
+    else if (next === S.OPEN) {
+      action = "restore"; label = "交回智能助手";
+      confirmMsg = "交回智能助手（恢復跟進）「" + nm + "」？" +
+        ((QJ.proxyConfigured && QJ.proxyConfigured()) ? "\n系統會傳「感謝耐心等候」給客戶。" : "");
+    } else if (next === S.DONE) {
+      action = "close"; label = "結案";
+      confirmMsg = "確定結案「" + nm + "」？\n結案後會從清單移除，需逐筆恢復。";
+    } else { t.value = cur; return; }
+    if (confirmMsg && !window.confirm(confirmMsg)) { t.value = cur; return; }
+    doPatch(id, { 狀態: next }, function (r) { r.狀態 = next; }, label, { action: action });
+  }
+
   function boot() {
     if (state.booting) return;
     state.booting = true;
@@ -153,6 +172,8 @@
         t.value = "";
       } else if (t && t.classList && t.classList.contains("cta-slice")) {
         QJ.render.applyCtaFilter && QJ.render.applyCtaFilter(t.getAttribute("data-facet"), t.value);
+      } else if (t && t.classList && t.classList.contains("status-select")) {
+        onStatusChange(t);
       }
     });
     ["slice-type", "slice-owner", "slice-status"].forEach(function (id) {

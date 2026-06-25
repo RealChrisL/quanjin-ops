@@ -80,6 +80,23 @@
   }
   var STATUS_DISPLAY = (window.QJ && QJ.STATUS_DISPLAY) || {};
   function statusDisplay(s) { return STATUS_DISPLAY[s] || s || "—"; }
+  /* 狀態下拉：跟進中／人工接管中／已完成 → app 經 proxy 走 bot 接管／恢復／結案 */
+  var STATUS_FLOW = (window.QJ && QJ.STATUS) ? [QJ.STATUS.OPEN, QJ.STATUS.HUMAN, QJ.STATUS.DONE] : ["跟進中", "人工接管中", "已完成"];
+  function statusSelect(id, current, level) {
+    var sel = el("select", "status-select pill " + (LEVEL_PILL[level] || "ok"));
+    sel.setAttribute("data-id", id || "");
+    sel.setAttribute("data-current", current || "");
+    sel.setAttribute("title", "變更狀態");
+    if (current && STATUS_FLOW.indexOf(current) === -1) {
+      var oc = el("option", null, statusDisplay(current)); oc.value = current; oc.selected = true; sel.appendChild(oc);
+    }
+    STATUS_FLOW.forEach(function (s) {
+      var o = el("option", null, statusDisplay(s)); o.value = s;
+      if (s === current) o.selected = true;
+      sel.appendChild(o);
+    });
+    return sel;
+  }
   // 待回 = 紅（danger）、逾期 = 琥珀（warn）；對映既有 pill 配色 overdue(紅)/soon(琥珀)
   var LEVEL_PILL = { pending: "soon", overdue: "overdue", ok: "ok" };
   var LEVEL_LABEL = { pending: "待回", overdue: "逾期", ok: "正常" };
@@ -378,10 +395,9 @@
     tdOwner.appendChild(oc);
     tr.appendChild(tdOwner);
 
-    // 狀態藥丸（用 level 對映 danger/warn/ok 視覺；文字用生產顯示值）
+    // 狀態：可變更下拉（跟進中／人工接管中／已完成 → 經 proxy 走 bot 接管／恢復／結案）
     var tdStatus = el("td");
-    var pill = el("span", "pill " + (LEVEL_PILL[item.level] || "ok"), statusDisplay(rec.狀態));
-    tdStatus.appendChild(pill);
+    tdStatus.appendChild(statusSelect(rec.id, rec.狀態, item.level));
     tr.appendChild(tdStatus);
 
     // 等候天數
