@@ -151,6 +151,8 @@
    * 壹 · CTA 待辦行動
    * ========================================================================== */
   var ACTION_KIND_LABEL = { pending: "待回覆", overdue: "逾期跟進", close: "可結案", amount: "待補金額" };
+  var TIP_CONTACTED = "已聯繫：記下你已回覆或聯繫這位客戶，案件暫時不再提醒；客戶再來訊會自動重新計時。";
+  var TIP_CLOSE = "結案：案件辦理完成，會移出清單（之後要逐筆「恢復」才能拉回）。送出前可順手填成交金額。";
 
   function ctaButton(label, ctaType, id, variant, disabled, title) {
     var b = el("button", "cta" + (variant ? " " + variant : ""), label);
@@ -164,7 +166,7 @@
 
   // 標記已聯繫
   function ctaContacted(id) {
-    return ctaButton("標記已聯繫", "contacted", id, "cta-ink");
+    return ctaButton("標記已聯繫", "contacted", id, "cta-ink", false, TIP_CONTACTED);
   }
   // 改派（v1 停用）
   function ctaReassign(id) {
@@ -187,6 +189,8 @@
       return;
     }
 
+    host.appendChild(el("div", "cta-legend",
+      "已聯繫＝我已回覆／聯繫（暫不提醒，客戶再來訊自動重新計時）　·　結案＝案件辦理完成（移出清單，可逐筆恢復）"));
     actions.forEach(function (act) {
       host.appendChild(buildActionRow(act));
     });
@@ -232,9 +236,9 @@
     var ctrls = el("div", "cta-ctrls");
     if (act.kind === "pending" || act.kind === "overdue") {
       ctrls.appendChild(ctaContacted(id));
-      ctrls.appendChild(ctaButton("送件結案", "close", id, "cta-ok"));
+      ctrls.appendChild(ctaButton("送件結案", "close", id, "cta-ok", false, TIP_CLOSE));
     } else if (act.kind === "close") {
-      ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok"));
+      ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok", false, TIP_CLOSE));
       ctrls.appendChild(ctaContacted(id));
     } else if (act.kind === "amount") {
       ctrls.appendChild(ctaButton("補成交金額", "amount", id, "cta-accent"));
@@ -386,7 +390,7 @@
     var id = rec.id;
     var t = next.type;
     var wrap = el("span", "qcta-wrap");
-    if (t === "close") wrap.appendChild(ctaButton(next.label || "結案", "close", id, "cta-ok"));
+    if (t === "close") wrap.appendChild(ctaButton(next.label || "結案", "close", id, "cta-ok", false, TIP_CLOSE));
     else if (t === "amount") wrap.appendChild(ctaButton(next.label || "補金額", "amount", id, "cta-accent"));
     else wrap.appendChild(ctaButton(next.label || "標記已聯繫", "contacted", id, "cta-ink"));
     var rs = reassignSelect(id);
