@@ -111,7 +111,7 @@
         '<div class="setup-card">' +
           '<div class="setup-head">' +
             '<div class="seal" aria-label="全謹代書印"><span class="seal-grid"><span>全</span><span>謹</span><span>代</span><span>書</span></span></div>' +
-            '<div><h2>每日營運登記簿</h2><p>連線設定 · 朱墨印譜</p></div>' +
+            '<div><h2>營運戰情室</h2><p>連線設定 · 朱墨印譜</p></div>' +
           '</div>' +
           '<div class="setup-body">' +
             '<label for="in-pat"><span class="setup-field-label">Airtable Personal Access Token</span>' +
@@ -123,7 +123,7 @@
 
             '<div class="setup-error" id="setup-error" hidden></div>' +
 
-            '<button id="btn-save-creds" type="button">啟用登記簿</button>' +
+            '<button id="btn-save-creds" type="button">啟用戰情室</button>' +
 
             '<p class="setup-note">資料只在 Airtable 與本機之間直連，不經第三方。憑證僅存於這台瀏覽器，可隨時清除。公開網址不存放任何客戶資料——沒有權杖什麼都看不到。</p>' +
           '</div>' +

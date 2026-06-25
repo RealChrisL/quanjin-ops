@@ -42,7 +42,7 @@
     return QJ.airtable.fetchRecords().then(function (recs) {
       state.records = recs;
       analyzeAndRender(diff);
-      setStatus("Airtable 即時連線中", true);
+      setStatus("資料同步中", true);
     }).catch(function (e) {
       setStatus("連線中斷——將自動重試", false);
       toast("讀取失敗（" + (e && e.status || "網路") + "）。已保留目前畫面，下次輪詢會自動重試。", "danger");
@@ -81,7 +81,11 @@
     var cta = btn.getAttribute("data-cta"), id = btn.getAttribute("data-id");
     if (!id) return;
 
-    if (cta === "amount" || cta === "close") { QJ.render.openInlineAmount && QJ.render.openInlineAmount(id); return; }
+    if (cta === "amount" || cta === "close") {
+      var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls"))) || btn.parentNode;
+      QJ.render.openInlineAmount && QJ.render.openInlineAmount(host, id, cta);
+      return;
+    }
 
     if (cta === "contacted") {
       doPatch(id, { 最後互動時間: nowISO() }, function (r) { r.lastInteraction = new Date(); r.lastInteractionField = r.lastInteractionField || ""; }, "標記已聯繫");
@@ -99,6 +103,8 @@
       return;
     }
     if (cta === "close-confirm") {
+      var rcf = findRec(id);
+      if (!window.confirm("確定結案「" + ((rcf && rcf.委託人) || "此案") + "」？\n結案後會從清單移除，需逐筆恢復。")) return;
       var v2 = QJ.render.getInlineAmount ? QJ.render.getInlineAmount(id) : null;
       var patch2 = { 狀態: QJ.STATUS.DONE, 結案日期: QJ.todayISODate() };
       var n2 = Number(v2);
@@ -127,7 +133,13 @@
       var t = ev.target;
       if (t && t.classList && t.classList.contains("reassign-select")) {
         var rid = t.getAttribute("data-id"), val = t.value;
-        if (rid && val) doPatch(rid, { 承辦人: val }, function (r) { r.承辦人 = val; }, "改派承辦人");
+        if (rid && val) {
+          var rr = findRec(rid), wasOpen = !!(rr && rr.狀態 === QJ.STATUS.OPEN);
+          var patchR = { 承辦人: val };
+          if (wasOpen) patchR.狀態 = QJ.STATUS.HUMAN; // 鏡像 bot：改派即接管，避免 bot 仍自動回覆
+          doPatch(rid, patchR, function (r) { r.承辦人 = val; if (wasOpen) r.狀態 = QJ.STATUS.HUMAN; }, "改派承辦人");
+          toast("已改派。注意：同仁不會收到 LINE 通知，請另行口頭告知。", "info");
+        }
         t.value = "";
       }
     });

@@ -274,6 +274,13 @@
       var v = toStr(rawFields[cands[i]]);
       if (v) { return v; }
     }
+    // 後備：沒有姓名時，掃出 LINE userId（U+長 hex）讓 CEO 至少能辨識，而非一律「未具名」。
+    for (var k in rawFields) {
+      if (Object.prototype.hasOwnProperty.call(rawFields, k)) {
+        var s = toStr(rawFields[k]).trim();
+        if (/^U[0-9a-f]{16,}$/i.test(s)) { return s; }
+      }
+    }
     return "";
   }
 

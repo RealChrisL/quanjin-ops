@@ -342,7 +342,7 @@
 
     /* ---- kpis ---- */
     // closableToday：今天「可推進結案」的件數 = 待補金額 + 可結案候選。
-    var closableToday = pendingAmount.length + closable.length;
+    var closableToday = closable.length; // 可結案＝人工接管中（待補金額另計，見 deal.pendingAmount）
     var kpis = {
       pending: pendingCount,                   // 🔴 待回（≥2 營業時未回）
       overdueRisk: overdueCount,               // 🟠 逾期（≥1 工作天未互動/結案）

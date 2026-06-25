@@ -52,11 +52,24 @@
     if (/[一-鿿]/.test(s)) return s.slice(-1);
     return s.slice(0, 1).toUpperCase();
   }
-  /* 承辦人顯示名：從「名字 (uid)」取出名字（對齊 bot 委派團隊成員格式）；無括號則原樣回傳。 */
+  /* 承辦人顯示名：優先用 uid 對名冊取真實姓名（HSU→徐鈞澤）；否則去掉「(uid)」取名字部分。 */
   function displayOwner(raw) {
-    var s = String(raw == null ? "" : raw);
-    var m = s.match(/^(.*?)\s*\(([^()]+)\)\s*$/);
-    return (m && m[1].trim()) ? m[1].trim() : s;
+    var s = String(raw == null ? "" : raw).trim();
+    if (!s) return s;
+    var byUid = (window.QJ && QJ.TEAM_BY_UID) || {};
+    var m = s.match(/[\(（]([^()（）]+)[\)）]\s*$/);
+    var uid = m ? m[1].trim() : "";
+    if (uid && byUid[uid]) return byUid[uid];
+    if (byUid[s]) return byUid[s];
+    if (uid) return s.replace(/\s*[\(（][^()（）]+[\)）]\s*$/, "").trim() || s;
+    return s;
+  }
+  /* 客戶顯示名：匿名（只有 LINE userId）客戶 → 「未命名・末6碼」；真正空白才「未具名委託人」。 */
+  function clientLabel(name) {
+    var s = String(name == null ? "" : name).trim();
+    if (!s) return "未具名委託人";
+    if (/^U[0-9a-f]{16,}$/i.test(s)) return "未命名・" + s.slice(-6);
+    return s;
   }
   function avatar(name, opts) {
     var disp = displayOwner(name);
@@ -195,11 +208,13 @@
     row.setAttribute("data-id", id || "");
 
     var meta = el("div", "cta-meta");
-    var name = el("div", "cta-name", rec.委託人 || "未具名委託人");
+    var name = el("div", "cta-name", clientLabel(rec.委託人));
     if (rec.案號) name.appendChild(el("span", "cta-no", rec.案號));
     meta.appendChild(name);
-    meta.appendChild(el("div", "cta-desc",
-      (ACTION_KIND_LABEL[act.kind] || "") + "｜" + (act.label || rec.案件類型 || "")));
+    var dsc = (ACTION_KIND_LABEL[act.kind] || "");
+    if (rec.案件類型) dsc += "｜" + rec.案件類型;
+    dsc += "｜承辦：" + (displayOwner(rec.承辦人) || "未指派");
+    meta.appendChild(el("div", "cta-desc", dsc));
 
     // 等候時間 ＋ 待辦事項（行動上下文）
     var extra = el("div", "cta-extra");
@@ -215,7 +230,7 @@
     var ctrls = el("div", "cta-ctrls");
     if (act.kind === "pending" || act.kind === "overdue") {
       ctrls.appendChild(ctaContacted(id));
-      ctrls.appendChild(ctaButton("標記可結案", "close", id, "cta-ok"));
+      ctrls.appendChild(ctaButton("送件結案", "close", id, "cta-ok"));
     } else if (act.kind === "close") {
       ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok"));
       ctrls.appendChild(ctaContacted(id));
@@ -309,7 +324,7 @@
 
     // 委託人
     var tdName = el("td");
-    tdName.appendChild(el("span", "client-name", rec.委託人 || "未具名"));
+    tdName.appendChild(el("span", "client-name", clientLabel(rec.委託人)));
     tr.appendChild(tdName);
 
     // 案號 (mono)
@@ -348,17 +363,17 @@
     return tr;
   }
 
-  /* 改派下拉：來源＝資料中既有的承辦人「名字 (uid)」；寫回保留原格式以相容 bot。 */
+  /* 改派下拉：來源＝團隊名冊（QJ.TEAM_ROSTER）；寫回「名字 (uid)」相容 bot 委派團隊成員。 */
   function reassignSelect(id) {
     if (!(window.QJ && QJ.REASSIGN_ENABLED === true)) return null;
-    var owners = (R._owners || []).filter(Boolean);
-    if (!owners.length) return null;
+    var roster = (window.QJ && QJ.TEAM_ROSTER) || [];
+    if (!roster.length) return null;
     var sel = el("select", "reassign-select");
     sel.setAttribute("data-id", id || "");
     sel.setAttribute("title", "改派承辦人");
-    var ph = el("option", null, "改派…"); ph.value = ""; sel.appendChild(ph);
-    owners.forEach(function (raw) {
-      var o = el("option", null, displayOwner(raw)); o.value = raw; sel.appendChild(o);
+    var ph = el("option", null, "改派給…"); ph.value = ""; sel.appendChild(ph);
+    roster.forEach(function (m) {
+      var o = el("option", null, m.name); o.value = QJ.delegateeValue(m); sel.appendChild(o);
     });
     return sel;
   }
@@ -423,7 +438,7 @@
     recs.slice(0, 8).forEach(function (rec) {
       var li = el("li");
       var left = el("span");
-      left.appendChild(document.createTextNode((rec.委託人 || "未具名") + " "));
+      left.appendChild(document.createTextNode(clientLabel(rec.委託人) + " "));
       if (rec.案號) left.appendChild(el("span", "dl-no", rec.案號));
       li.appendChild(left);
       li.appendChild(el("b", null,
@@ -489,15 +504,15 @@
       stats.appendChild(s1);
       var s2 = el("div", "team-stat overdue");
       s2.appendChild(el("b", null, String(t.overdue || 0)));
-      s2.appendChild(el("span", null, "逾期"));
+      s2.appendChild(el("span", null, "待跟進"));
       stats.appendChild(s2);
       card.appendChild(stats);
 
-      var meta = el("div", "team-meta");
-      meta.appendChild(document.createTextNode("平均回應 "));
-      meta.appendChild(el("span", "tm-resp",
-        (t.avgRespDays != null && !isNaN(t.avgRespDays)) ? (t.avgRespDays + " 天") : "—"));
-      card.appendChild(meta);
+      if (t.avgRespDays != null && !isNaN(t.avgRespDays)) {
+        var meta = el("div", "team-meta");
+        meta.appendChild(document.createTextNode("平均回應 " + t.avgRespDays + " 天"));
+        card.appendChild(meta);
+      }
 
       host.appendChild(card);
     });

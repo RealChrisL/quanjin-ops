@@ -56,7 +56,26 @@ QJ.FIELD_MAP_DEFAULTS = {
  * contacted : 最後互動時間=now(ISO 8601)
  * reassign  : 承辦人=「名字 (uid)」  ← bot 解析格式；v1 停用（fast-follow，待確認欄位型別）
  */
-QJ.REASSIGN_ENABLED = true; // 改派啟用：下拉來源＝資料中既有承辦人「名字 (uid)」，寫回保留格式相容 bot
+QJ.REASSIGN_ENABLED = true; // 改派啟用
+
+/* ---- 團隊名冊（改派下拉來源；對齊 bot roles_meta）----
+ * 注意：姓名＋uid 會打包進公開 bundle；uid 為內部同仁 LINE id（非客戶資料）。
+ * 顯示一律用真實姓名（例如 HSU → 徐鈞澤）。改派寫回格式＝「名字 (uid)」相容 bot 委派團隊成員。 */
+QJ.TEAM_ROSTER = [
+  { name: "黃玲智", uid: "Ud5c30f62587012a787b42f7ab04c65fe" },
+  { name: "徐鈞澤", uid: "U4c6dfbf4ab07c3452cf666201bf5d2de" },
+  { name: "黃薏任", uid: "U8744479371832d0e93d18ce56a9f6e30" },
+  { name: "曹宜琪", uid: "Uaa58c929d155715574849a20e740c578" },
+  { name: "林思瑩", uid: "U4e74f528831c42815e352e0418d5cd48" },
+  { name: "盧柏元", uid: "Ud7d29d26a96e74aa5b3529e0d1d52cfb" },
+  { name: "周珈儀", uid: "U322a5fbaae39a85d4d409c045d4571d5" },
+  { name: "傅子璇", uid: "U148c9d0793c77152c3678b8bcb0516e4" },
+  { name: "謝代書", uid: "U506e5fade9587ae3bb2f142831f07ac8" },
+  { name: "奕溱",   uid: "Ubf15d6f0c8983b1369784ae002c9b6b4" }
+];
+QJ.TEAM_BY_UID = {};
+QJ.TEAM_ROSTER.forEach(function (m) { QJ.TEAM_BY_UID[m.uid] = m.name; });
+QJ.delegateeValue = function (m) { return m.name + " (" + m.uid + ")"; }; // bot 委派團隊成員格式
 
 /* ---- 民國紀年工具（全 UI 共用）---- */
 QJ.rocDate = function (d) {
