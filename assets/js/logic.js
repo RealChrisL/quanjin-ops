@@ -427,7 +427,7 @@
   function buildSummaryText(c) {
     var parts = [];
     parts.push("今日共 " + c.active + " 件進行中案件");
-    if (c.pending > 0) parts.push("🟠 " + c.pending + " 件待回覆（客戶等逾 4 營業時）");
+    if (c.pending > 0) parts.push("🟠 " + c.pending + " 件待回覆（客戶上班時間已等超過 4 小時）");
     if (c.overdue > 0) parts.push("🔴 " + c.overdue + " 件逾期（逾 1 天未互動）");
     if ((c.pending || 0) === 0 && (c.overdue || 0) === 0) parts.push("目前無待回/逾期案件");
     if (c.closable > 0) parts.push("有 " + c.closable + " 件可推進結案");

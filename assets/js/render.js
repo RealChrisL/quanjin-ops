@@ -152,7 +152,7 @@
     var host = $("kpis"); if (!host) return;
     clear(host);
     var k = state.kpis || {};
-    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（4 營業時）"));
+    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（上班時間 4 小時）"));
     host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🔴 逾期（1 天）"));
     host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "人工接管中"));
     host.appendChild(kpiCell("kpi-money", String(k.monthClosed || 0), "本月結案件數"));
