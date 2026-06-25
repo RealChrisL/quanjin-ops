@@ -51,7 +51,11 @@
 
   function startPolling() {
     if (state.pollTimer) clearInterval(state.pollTimer);
-    state.pollTimer = setInterval(function () { if (!document.hidden) refresh(true); }, (S.pollSeconds || 25) * 1000);
+    state.pollTimer = setInterval(function () {
+      if (document.hidden) return;
+      if (document.querySelector(".inline-edit")) return; // 正在輸入成交金額／結案，勿讓輪詢重繪洗掉未送出的輸入
+      refresh(true);
+    }, (S.pollSeconds || 25) * 1000);
   }
 
   /* ---- CTA：樂觀更新 → PATCH → reconcile / rollback ---- */
@@ -147,12 +151,14 @@
           toast("已改派。注意：同仁不會收到 LINE 通知，請另行口頭告知。", "info");
         }
         t.value = "";
+      } else if (t && t.classList && t.classList.contains("cta-slice")) {
+        QJ.render.applyCtaFilter && QJ.render.applyCtaFilter(t.getAttribute("data-facet"), t.value);
       }
     });
     ["slice-type", "slice-owner", "slice-status"].forEach(function (id) {
       var el = document.getElementById(id); if (el) el.addEventListener("change", onSliceChange);
     });
-    document.addEventListener("visibilitychange", function () { if (!document.hidden && state.analysis) refresh(true); });
+    document.addEventListener("visibilitychange", function () { if (!document.hidden && state.analysis && !document.querySelector(".inline-edit")) refresh(true); });
 
     setStatus("連線中…", false);
     QJ.airtable.detectSchema().then(function () {

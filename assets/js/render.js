@@ -25,6 +25,7 @@
   var R = {};            // QJ.render
   R._last = null;        // 最近一次 state（applyFilters 用）
   R._filters = { type: "", owner: "", status: "" };
+  R._ctaFilters = { owner: "", type: "", kind: "" };
 
   /* ---------- 小工具 ---------- */
   function $(id) { return document.getElementById(id); }
@@ -189,12 +190,48 @@
       return;
     }
 
+    var slicers = el("div", "slicers cta-slicers");
+    slicers.appendChild(ctaSlicer("owner", "全部承辦人", actions, function (a) { return displayOwner((a.rec || {}).承辦人); }, null));
+    slicers.appendChild(ctaSlicer("type", "全部案型", actions, function (a) { return (a.rec || {}).案件類型; }, null));
+    slicers.appendChild(ctaSlicer("kind", "全部類別", actions, function (a) { return a.kind; }, function (k) { return ACTION_KIND_LABEL[k] || k; }));
+    host.appendChild(slicers);
+
     host.appendChild(el("div", "cta-legend",
       "已聯繫＝我已回覆／聯繫（暫不提醒，客戶再來訊自動重新計時）　·　結案＝案件辦理完成（移出清單，可逐筆恢復）"));
-    actions.forEach(function (act) {
-      host.appendChild(buildActionRow(act));
-    });
+
+    var visible = actions.filter(function (act) { return ctaMatch(act, null); });
+    if (!visible.length) {
+      host.appendChild(el("div", "empty-state", "此條件下今日無待辦行動 — 請調整上方篩選。"));
+      return;
+    }
+    visible.forEach(function (act) { host.appendChild(buildActionRow(act)); });
   }
+
+  /* 待辦行動的 facet 篩選（承辦人／案型／類別），互不阻擋計數：算某 facet 的選項時略過該 facet 本身 */
+  function ctaMatch(act, except) {
+    var rec = act.rec || {};
+    if (except !== "owner" && R._ctaFilters.owner && displayOwner(rec.承辦人) !== R._ctaFilters.owner) return false;
+    if (except !== "type" && R._ctaFilters.type && (rec.案件類型 || "") !== R._ctaFilters.type) return false;
+    if (except !== "kind" && R._ctaFilters.kind && act.kind !== R._ctaFilters.kind) return false;
+    return true;
+  }
+  function ctaSlicer(facet, allLabel, actions, valueOf, labelOf) {
+    var counts = {};
+    actions.forEach(function (act) { if (!ctaMatch(act, facet)) return; var v = valueOf(act); if (v) counts[v] = (counts[v] || 0) + 1; });
+    var s = el("select", "slice-select cta-slice"); s.setAttribute("data-facet", facet);
+    var all = el("option", null, allLabel); all.value = ""; s.appendChild(all);
+    Object.keys(counts).sort().forEach(function (k) {
+      var o = el("option", null, (labelOf ? labelOf(k) : k) + "（" + counts[k] + "）"); o.value = k;
+      if (R._ctaFilters[facet] === k) o.selected = true;
+      s.appendChild(o);
+    });
+    var lab = el("label", "slice-field"); lab.appendChild(s);
+    return lab;
+  }
+  R.applyCtaFilter = function (facet, value) {
+    if (R._ctaFilters.hasOwnProperty(facet)) R._ctaFilters[facet] = value || "";
+    if (R._last) renderCtaActions(R._last);
+  };
 
   /* 該筆 Airtable 紀錄連結（base/table 來自憑證，recordId 來自 act）。 */
   function airtableUrl(id) {
