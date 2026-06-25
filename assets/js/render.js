@@ -433,7 +433,7 @@
   /* =============================================================================
    * 貳 · 成交進度欄 #deal-track
    * ========================================================================== */
-  function dealList(title, recs, cls, emptyText) {
+  function dealList(title, recs, cls, emptyText, ctaKind) {
     var box = el("div", "deal-sub " + cls);
     box.appendChild(el("h4", null, title));
     if (!recs || !recs.length) {
@@ -442,13 +442,24 @@
     }
     var ul = el("ul");
     recs.slice(0, 8).forEach(function (rec) {
-      var li = el("li");
-      var left = el("span");
-      left.appendChild(document.createTextNode(clientLabel(rec.委託人) + " "));
+      var li = el("li", "dl-row");
+      li.setAttribute("data-id", rec.id || "");
+      var left = el("span", "dl-left");
+      left.appendChild(el("span", "dl-name", clientLabel(rec.委託人)));
       if (rec.案號) left.appendChild(el("span", "dl-no", rec.案號));
       li.appendChild(left);
-      li.appendChild(el("b", null,
+      li.appendChild(el("span", "dl-amt",
         (rec.成交金額 != null && !isNaN(rec.成交金額)) ? fmtMoney(rec.成交金額) : "待補"));
+      var acts = el("span", "dl-actions");
+      if (ctaKind === "close") acts.appendChild(ctaButton("結案", "close", rec.id, "cta-ok", false, TIP_CLOSE));
+      else if (ctaKind === "amount") acts.appendChild(ctaButton("補金額", "amount", rec.id, "cta-accent"));
+      var url = airtableUrl(rec.id);
+      if (url) {
+        var lk = el("a", "cta cta-link", "🔗");
+        lk.setAttribute("href", url); lk.setAttribute("target", "_blank"); lk.setAttribute("rel", "noopener noreferrer");
+        acts.appendChild(lk);
+      }
+      li.appendChild(acts);
       ul.appendChild(li);
     });
     box.appendChild(ul);
@@ -477,8 +488,8 @@
       host.appendChild(el("div", "deal-target", "未設定本月目標。"));
     }
 
-    host.appendChild(dealList("可結案", d.closable, "closable", "無可結案案件。"));
-    host.appendChild(dealList("待補金額", d.pendingAmount, "pending", "金額皆已登錄。"));
+    host.appendChild(dealList("可結案", d.closable, "closable", "無可結案案件。", "close"));
+    host.appendChild(dealList("待補金額", d.pendingAmount, "pending", "金額皆已登錄。", "amount"));
   }
 
   /* =============================================================================

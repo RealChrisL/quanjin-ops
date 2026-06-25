@@ -84,7 +84,7 @@
     if (!id) return;
 
     if (cta === "amount" || cta === "close") {
-      var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls"))) || btn.parentNode;
+      var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls") || btn.closest(".dl-row"))) || btn.parentNode;
       QJ.render.openInlineAmount && QJ.render.openInlineAmount(host, id, cta);
       return;
     }
