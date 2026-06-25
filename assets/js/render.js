@@ -176,9 +176,9 @@
     return b;
   }
 
-  // 標記已聯繫
+  // 已聯繫
   function ctaContacted(id) {
-    return ctaButton("標記已聯繫", "contacted", id, "cta-ink", false, TIP_CONTACTED);
+    return ctaButton("已聯繫", "contacted", id, "cta-ink", false, TIP_CONTACTED);
   }
   // 改派（v1 停用）
   function ctaReassign(id) {
@@ -283,7 +283,7 @@
 
     var ctrls = el("div", "cta-ctrls");
     if (act.kind === "pending" || act.kind === "overdue" || act.kind === "close") {
-      // 一致排序與字樣：每列皆「標記已聯繫（墨）｜送件結案（綠）」
+      // 一致排序與字樣：每列皆「已聯繫（墨）｜送件結案（綠）」
       ctrls.appendChild(ctaContacted(id));
       ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok", false, TIP_CLOSE));
     } else if (act.kind === "amount") {
@@ -427,13 +427,13 @@
 
   function buildQueueCta(item) {
     var rec = item.rec || {};
-    var next = item.nextCTA || { type: "contacted", label: "標記已聯繫" };
+    var next = item.nextCTA || { type: "contacted", label: "已聯繫" };
     var id = rec.id;
     var t = next.type;
     var wrap = el("span", "qcta-wrap");
     if (t === "close") wrap.appendChild(ctaButton(next.label || "結案", "close", id, "cta-ok", false, TIP_CLOSE));
     else if (t === "amount") wrap.appendChild(ctaButton(next.label || "補金額", "amount", id, "cta-accent"));
-    else wrap.appendChild(ctaButton(next.label || "標記已聯繫", "contacted", id, "cta-ink"));
+    else wrap.appendChild(ctaButton(next.label || "已聯繫", "contacted", id, "cta-ink"));
     var rs = reassignSelect(id);
     if (rs) wrap.appendChild(rs);
     return wrap;
@@ -544,9 +544,15 @@
     host.appendChild(el("div", "deal-amount-label",
       (d.monthClosedCount > 0) ? "本月已結案件數" : "本月尚無結案記錄"));
 
+    if (d.monthClosedCount > 0 && d.dailyPace != null) {
+      var pace = (d.dailyPace % 1 === 0) ? String(d.dailyPace) : d.dailyPace.toFixed(1);
+      host.appendChild(el("div", "deal-pace", "本月已過 " + d.daysElapsed + " 天・平均每天 " + pace + " 件"));
+    }
     if (d.honestCount > 0) {
       host.appendChild(el("div", "deal-target",
         "其中 " + d.honestCount + " 件已登金額，合計 " + fmtMoney(d.honestAmount)));
+    } else if (d.monthClosedCount > 0) {
+      host.appendChild(el("div", "deal-gap", "成交金額尚未登記，結案時可一併補登"));
     }
 
     host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));

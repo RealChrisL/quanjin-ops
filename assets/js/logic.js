@@ -222,18 +222,18 @@
 
   /* ---------------------------------------------------------------------------
    * nextCTA：佇列每列的下一步行動建議。
-   *   逾期(overdue)      → 標記已聯繫（先把熱度補回來）
+   *   逾期(overdue)      → 已聯繫（先把熱度補回來）
    *   人工接管中         → 送件結案（人已接手，下一步通常是結案）
-   *   其他               → 標記已聯繫
+   *   其他               → 已聯繫
    * ------------------------------------------------------------------------- */
   function nextCTAOf(rec, level) {
     if (level === "pending" || level === "overdue") {
-      return { type: "contacted", label: "標記已聯繫" };
+      return { type: "contacted", label: "已聯繫" };
     }
     if (isHuman(rec)) {
       return { type: "close", label: "結案" };
     }
-    return { type: "contacted", label: "標記已聯繫" };
+    return { type: "contacted", label: "已聯繫" };
   }
 
   /* ---------------------------------------------------------------------------
@@ -406,6 +406,8 @@
       team: team,
       deal: {
         monthClosedCount: monthClosedCount,
+        daysElapsed: now.getDate(),
+        dailyPace: (monthClosedCount > 0) ? Math.round(monthClosedCount / now.getDate() * 10) / 10 : null,
         byType: byType,
         byOwner: byOwner,
         honestCount: honestCount,
