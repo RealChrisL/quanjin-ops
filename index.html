@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=20260625n">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=20260625o">
 </head>
 <body>
 
@@ -55,10 +55,10 @@
 
     <!-- 貳 · 客戶佇列 + 成交進度欄 -->
     <section class="board" aria-labelledby="queue-heading">
-      <h2 id="queue-heading" class="sec-head"><span class="sec-num">貳</span>客戶佇列</h2>
+      <h2 id="queue-heading" class="sec-head"><span class="sec-num">貳</span>客戶清單</h2>
       <div class="queue-layout">
         <div class="queue-main">
-          <div class="slicers" role="group" aria-label="佇列切片">
+          <div class="slicers" role="group" aria-label="客戶篩選">
             <label class="slice-field"><span class="slice-label">類型</span>
               <select id="slice-type" class="slice-select"></select></label>
             <label class="slice-field"><span class="slice-label">承辦人</span>
@@ -112,12 +112,12 @@
   <div id="sync-log" class="sync-log" aria-live="polite" aria-label="同步紀錄"></div>
 
   <!-- 載入順序（defer）：config → auth → airtable → logic → charts → render → app -->
-  <script src="./assets/js/config.js?v=20260625n" defer></script>
-  <script src="./assets/js/auth.js?v=20260625n" defer></script>
-  <script src="./assets/js/airtable.js?v=20260625n" defer></script>
-  <script src="./assets/js/logic.js?v=20260625n" defer></script>
-  <script src="./assets/js/charts.js?v=20260625n" defer></script>
-  <script src="./assets/js/render.js?v=20260625n" defer></script>
-  <script src="./assets/js/app.js?v=20260625n" defer></script>
+  <script src="./assets/js/config.js?v=20260625o" defer></script>
+  <script src="./assets/js/auth.js?v=20260625o" defer></script>
+  <script src="./assets/js/airtable.js?v=20260625o" defer></script>
+  <script src="./assets/js/logic.js?v=20260625o" defer></script>
+  <script src="./assets/js/charts.js?v=20260625o" defer></script>
+  <script src="./assets/js/render.js?v=20260625o" defer></script>
+  <script src="./assets/js/app.js?v=20260625o" defer></script>
 </body>
 </html>

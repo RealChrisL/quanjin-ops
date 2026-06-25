@@ -460,8 +460,8 @@
       var td = el("td");
       td.colSpan = QUEUE_COLS.length;
       var msg = (R._filters.type || R._filters.owner || R._filters.status)
-        ? "此切片條件下沒有案件 — 調整上方篩選。"
-        : "目前沒有逾期案件 — 佇列乾淨。";
+        ? "這個篩選條件下沒有案件，調整看看上面的篩選。"
+        : "目前沒有進行中的案件。";
       var e = el("div", "empty-state", msg);
       td.appendChild(e);
       tr.appendChild(td);
