@@ -58,20 +58,23 @@
     }, (S.pollSeconds || 25) * 1000);
   }
 
-  /* ---- CTA：樂觀更新 → PATCH → reconcile / rollback ---- */
+  /* ---- CTA：一律走後端寫回代理（樂觀更新 → cta → reconcile / rollback）。
+   *      proxy 為必要條件（登入已強制兩把鑰匙）；未設定或未帶 action → 拒絕，
+   *      不做直連寫入，避免「有時通知、有時不通知」的不一致行為。 */
   function doPatch(id, semanticPatch, optimistic, label, proxyAction) {
     var rec = findRec(id); if (!rec) return;
+    if (!proxyAction || !(QJ.proxyConfigured && QJ.proxyConfigured())) {
+      toast("尚未設定寫入代理，無法寫入。請重新整理並輸入正確的代理密鑰。", "danger");
+      return;
+    }
     var snapshot = Object.assign({}, rec); // 淺拷貝，保留原始基本值供回滾（fields 為唯讀參照）
     if (optimistic) optimistic(rec);
     analyzeAndRender(true);
     bumpProcessed(+1);
-    var useProxy = !!(QJ.proxyConfigured && QJ.proxyConfigured() && proxyAction);
-    var p = useProxy ? QJ.airtable.cta(id, proxyAction) : QJ.airtable.patchRecord(id, semanticPatch);
-    p.then(function (updated) {
-      if (!useProxy) { replaceRec(id, updated); analyzeAndRender(true); } // 直連：以回傳值校正
-      log(label, true, useProxy ? "已透過後端安全寫入（含鎖／通知／稽核）" : "已同步 Airtable");
-      toast(useProxy ? "✓ 已安全寫入" : "✓ 已同步 Airtable", "ok");
-      if (useProxy) refresh(true); // 代理：以伺服器真相重抓校正
+    QJ.airtable.cta(id, proxyAction).then(function () {
+      log(label, true, "已透過後端安全寫入（含鎖／通知／稽核）");
+      toast("✓ 已安全寫入", "ok");
+      refresh(true); // 以伺服器真相重抓校正
     }).catch(function (e) {
       replaceRec(id, snapshot);           // 失敗回滾
       analyzeAndRender(true);
