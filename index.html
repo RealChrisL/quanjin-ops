@@ -85,7 +85,14 @@
       <h2 id="chart-heading" class="sec-head"><span class="sec-num">肆</span>營運圖譜</h2>
       <div class="charts">
         <figure class="chart-cell">
-          <figcaption class="chart-cap">案件類型分布</figcaption>
+          <figcaption class="chart-cap">案件類型分布
+            <select id="chart-time" class="chart-time-sel" aria-label="時間範圍">
+              <option value="all">全部</option>
+              <option value="90">近 90 天</option>
+              <option value="30">近 30 天</option>
+              <option value="7">近 7 天</option>
+            </select>
+          </figcaption>
           <div class="chart-box"><canvas id="chart-types"></canvas></div>
         </figure>
         <figure class="chart-cell">

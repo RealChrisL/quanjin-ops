@@ -276,6 +276,8 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 .cta-link { text-decoration:none; white-space:nowrap; }
 .qcta-wrap { display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap; }
 .reassign-select { font-family:var(--fb); font-size:12px; border:1px solid var(--rule2); background:var(--panel); color:var(--ink); padding:3px 6px; border-radius:0; }
+.chart-time-sel { float:right; font-family:var(--fb); font-size:11px; border:1px solid var(--rule2); background:var(--panel); color:var(--ink2); padding:1px 5px; border-radius:0; }
+.cta-chip.cta-value { color:var(--gold); border-color:var(--gold); font-weight:600; }
 .cta-row.kind-close   { border-left:6px solid var(--ok); }
 .cta-row.kind-amount  { border-left:6px solid var(--gold); }
 .cta-row .cta-meta { flex:1 1 220px; min-width:0; }

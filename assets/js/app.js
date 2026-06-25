@@ -88,7 +88,9 @@
     }
 
     if (cta === "contacted") {
-      doPatch(id, { 最後互動時間: nowISO() }, function (r) { r.lastInteraction = new Date(); r.lastInteractionField = r.lastInteractionField || ""; }, "標記已聯繫");
+      var rc = findRec(id), pc = { 最後互動時間: nowISO() };
+      if (rc && !rc.首次回應時間) pc.首次回應時間 = nowISO(); // 首次團隊回應 → 解鎖回應延遲/平均首覆
+      doPatch(id, pc, function (r) { r.lastInteraction = new Date(); if (rc && !rc.首次回應時間) r.首次回應時間 = new Date(); }, "標記已聯繫");
       return;
     }
     if (cta === "amount-confirm") {
@@ -111,7 +113,8 @@
       // 只在金額 > 0 時寫入；0/空白 → 留待補記，避免把結案誤標為「未成交」
       var hasAmt = (v2 != null && v2 !== "" && n2 > 0);
       if (hasAmt) patch2.成交金額 = n2;
-      doPatch(id, patch2, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (hasAmt) r.成交金額 = n2; }, "送件結案");
+      if (rcf && !rcf.首次回應時間) patch2.首次回應時間 = nowISO();
+      doPatch(id, patch2, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (hasAmt) r.成交金額 = n2; if (rcf && !rcf.首次回應時間) r.首次回應時間 = new Date(); }, "送件結案");
       QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
       return;
     }
@@ -137,7 +140,8 @@
           var rr = findRec(rid), wasOpen = !!(rr && rr.狀態 === QJ.STATUS.OPEN);
           var patchR = { 承辦人: val };
           if (wasOpen) patchR.狀態 = QJ.STATUS.HUMAN; // 鏡像 bot：改派即接管，避免 bot 仍自動回覆
-          doPatch(rid, patchR, function (r) { r.承辦人 = val; if (wasOpen) r.狀態 = QJ.STATUS.HUMAN; }, "改派承辦人");
+          if (rr && !rr.首次回應時間) patchR.首次回應時間 = nowISO();
+          doPatch(rid, patchR, function (r) { r.承辦人 = val; if (wasOpen) r.狀態 = QJ.STATUS.HUMAN; if (rr && !rr.首次回應時間) r.首次回應時間 = new Date(); }, "改派承辦人");
           toast("已改派。注意：同仁不會收到 LINE 通知，請另行口頭告知。", "info");
         }
         t.value = "";

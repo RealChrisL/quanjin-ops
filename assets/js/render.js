@@ -219,6 +219,8 @@
     // 等候時間 ＋ 待辦事項（行動上下文）
     var extra = el("div", "cta-extra");
     if (act.waitLabel) extra.appendChild(el("span", "cta-chip cta-wait", "已等 " + act.waitLabel));
+    var cv = (window.QJ && QJ.caseValue) ? QJ.caseValue(rec.案件類型) : null;
+    if (cv) extra.appendChild(el("span", "cta-chip cta-value", "約值 NT$" + cv.toLocaleString("en-US") + (act.kind === "overdue" ? "・正在變冷" : "")));
     var todos = rec.待辦事項 ? String(rec.待辦事項) : "";
     if (todos) {
       if (todos.length > 64) todos = todos.slice(0, 64) + "…";
@@ -508,9 +510,10 @@
       stats.appendChild(s2);
       card.appendChild(stats);
 
-      if (t.avgRespDays != null && !isNaN(t.avgRespDays)) {
+      if (t.avgRespHrs != null && !isNaN(t.avgRespHrs)) {
         var meta = el("div", "team-meta");
-        meta.appendChild(document.createTextNode("平均回應 " + t.avgRespDays + " 天"));
+        var rtxt = t.avgRespHrs < 24 ? (Math.round(t.avgRespHrs) + " 小時") : (Math.round(t.avgRespHrs / 2.4) / 10 + " 天");
+        meta.appendChild(document.createTextNode("平均首覆 " + rtxt));
         card.appendChild(meta);
       }
 

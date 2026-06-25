@@ -43,6 +43,8 @@ QJ.FIELD_MAP_DEFAULTS = {
   案號:     ["案號","案件編號","Case No","編號"],
   案件說明: ["需求摘要","對話摘要","案件說明","摘要","Notes"],
   待辦事項: ["待辦事項","待辦","代辦事項","To-Do","Todos"],
+  首次進線時間: ["首次進線時間","首次來訊時間","建立時間","Created"],
+  首次回應時間: ["首次回應時間","首覆時間","團隊首覆時間"],
   建立時間: ["建立時間","建檔時間","Created","Created time"],
   // 上次互動時間 = 客戶互動訊號（reconcileLastInteraction 依此「優先序」取第一個有值，非取最新）。
   // 刻意排除 最後音檔時間 / 最後修改時間 / Last Modified——那些是團隊端或被動更新，
@@ -76,6 +78,10 @@ QJ.TEAM_ROSTER = [
 QJ.TEAM_BY_UID = {};
 QJ.TEAM_ROSTER.forEach(function (m) { QJ.TEAM_BY_UID[m.uid] = m.name; });
 QJ.delegateeValue = function (m) { return m.name + " (" + m.uid + ")"; }; // bot 委派團隊成員格式
+
+/* ---- 案型估值（business_guide confirmed_price；未列者不顯示金額）---- */
+QJ.CASE_VALUE = { "監護宣告": 20000, "輔助宣告": 20000, "遺囑": 25000 };
+QJ.caseValue = function (t) { var v = QJ.CASE_VALUE[t]; return (typeof v === "number") ? v : null; };
 
 /* ---- 民國紀年工具（全 UI 共用）---- */
 QJ.rocDate = function (d) {

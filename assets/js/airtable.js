@@ -299,6 +299,8 @@
       案號:     toStr(mapped(f, fieldMap, "案號")),
       案件說明: toStr(mapped(f, fieldMap, "案件說明")),
       待辦事項: toStr(mapped(f, fieldMap, "待辦事項")),
+      首次進線時間: toDate(mapped(f, fieldMap, "首次進線時間")),
+      首次回應時間: toDate(mapped(f, fieldMap, "首次回應時間")),
       建立時間: toDate(mapped(f, fieldMap, "建立時間")),
       lastInteraction: li.date,
       lastInteractionField: li.field,

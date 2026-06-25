@@ -216,6 +216,24 @@
     };
   }
 
+  /* 案件類型分布的時間過濾：依 #chart-time 所選範圍（以建立時間）重算 types 計數。 */
+  function typesForTime(state) {
+    var series = state.charts && state.charts.typeSeries;
+    var selEl = (typeof document !== "undefined") ? document.getElementById("chart-time") : null;
+    var val = selEl ? selEl.value : "all";
+    if (!series || val === "all") { return (state.charts && state.charts.types) || []; }
+    var days = Number(val) || 0;
+    var cut = days > 0 ? (Date.now() - days * 864e5) : 0;
+    var counts = {};
+    for (var i = 0; i < series.length; i++) {
+      var x = series[i];
+      if (!x.type) continue;
+      if (cut && (!x.created || x.created < cut)) continue;
+      counts[x.type] = (counts[x.type] || 0) + 1;
+    }
+    return Object.keys(counts).sort().map(function (k) { return { label: k, value: counts[k] }; });
+  }
+
   /* =========================================================================
    * 圖一：#chart-types — 案件類型分布（甜甜圈，保留精簡圖例）
    * ===================================================================== */
@@ -226,7 +244,7 @@
 
     destroyInstance(id);
 
-    var pairs = (state.charts && state.charts.types) || [];
+    var pairs = typesForTime(state);
     var sp = splitPairs(pairs);
     if (!hasData(sp.values)) {
       renderEmpty(canvas, "尚無案件類型資料");
@@ -435,6 +453,17 @@
    * - Chart 未載入 / state.charts 缺失 → 不畫、不拋錯
    * - 各圖獨立 try：單圖失敗不連累其它兩圖
    * ===================================================================== */
+  var _lastState = null, _typeTimeBound = false;
+  function bindTypeTime() {
+    if (_typeTimeBound) return;
+    var sel = document.getElementById("chart-time");
+    if (!sel) return;
+    _typeTimeBound = true;
+    sel.addEventListener("change", function () {
+      var C = chartLib();
+      if (C && _lastState) { try { renderTypes(C, _lastState, false); } catch (e) { /* 容錯 */ } }
+    });
+  }
   function renderCharts(state) {
     var Chart = chartLib();
     if (!Chart) {
@@ -447,6 +476,8 @@
       destroyAll();
       return;
     }
+    _lastState = state;
+    bindTypeTime();
 
     applyDefaults(Chart);
     var anim = reducedMotion() ? false : undefined; // 尊重減少動態偏好

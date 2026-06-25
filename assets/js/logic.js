@@ -324,14 +324,26 @@
     }
     var overloadThreshold = Math.max(5, 1.5 * meanActive);
 
+    // 平均首覆：對「有首次進線時間＋首次回應時間」者，回應延遲＝首次回應−首次進線（小時），依承辦人平均。
+    var respMap = {};
+    for (var rp = 0; rp < recs.length; rp++) {
+      var rr2 = recs[rp];
+      var inq = toDate(rr2.首次進線時間), rsp = toDate(rr2.首次回應時間);
+      if (!inq || !rsp || rsp.getTime() < inq.getTime()) continue;
+      var ow2 = toStr(rr2.承辦人) || "未指派";
+      if (!respMap[ow2]) respMap[ow2] = { sum: 0, n: 0 };
+      respMap[ow2].sum += (rsp.getTime() - inq.getTime()) / 3600000;
+      respMap[ow2].n += 1;
+    }
     var team = ownerNames.map(function (owner) {
       var info = teamMap[owner];
       var flag = (info.active >= overloadThreshold) ? "overload" : "ok";
+      var rm = respMap[owner];
       return {
         owner: owner,
         active: info.active,
         overdue: info.overdue,
-        avgRespDays: null,   // 誠實：無回應歷史資料可計算
+        avgRespHrs: (rm && rm.n) ? (rm.sum / rm.n) : null,
         load: info.active,
         flag: flag,
       };
@@ -461,6 +473,13 @@
     var types = Object.keys(typeMap).sort().map(function (k) { return { label: k, value: typeMap[k] }; });
     var owners = Object.keys(ownerMap).sort().map(function (k) { return { label: k, value: ownerMap[k] }; });
 
+    // 案件類型分布的時間選擇用：每筆 {案型, 建立時間 ms}，由 charts 依所選範圍過濾。
+    var typeSeries = [];
+    for (var ts = 0; ts < active.length; ts++) {
+      var rt = active[ts], tty = toStr(rt.案件類型);
+      if (tty) typeSeries.push({ type: tty, created: (rt.建立時間 && rt.建立時間.getTime) ? rt.建立時間.getTime() : null });
+    }
+
     // ---- deals：本月逐日累計成交金額 ----
     // 收集本月內、成交金額>0 且有結案日期者，依日期排序後累計。
     var dayMap = {};   // day(1..31) → 當日金額加總
@@ -486,6 +505,7 @@
 
     return {
       types: types,
+      typeSeries: typeSeries,
       owners: owners,
       deals: {
         labels: labels,
