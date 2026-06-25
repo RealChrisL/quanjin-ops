@@ -83,6 +83,18 @@ QJ.TEAM_ROSTER = [
 QJ.TEAM_BY_UID = {};
 QJ.TEAM_ROSTER.forEach(function (m) { QJ.TEAM_BY_UID[m.uid] = m.name; });
 QJ.delegateeValue = function (m) { return m.name + " (" + m.uid + ")"; }; // bot 委派團隊成員格式
+// 承辦人顯示名：「名字 (uid)」→名字、純 uid→名字、其餘原樣。全站唯一 owner→name 解析來源。
+QJ.ownerName = function (raw) {
+  var s = String(raw == null ? "" : raw).trim();
+  if (!s) return s;
+  var byUid = QJ.TEAM_BY_UID || {};
+  var m = s.match(/[\(（]([^()（）]+)[\)）]\s*$/);
+  var uid = m ? m[1].trim() : "";
+  if (uid && byUid[uid]) return byUid[uid];
+  if (byUid[s]) return byUid[s];
+  if (uid) return s.replace(/\s*[\(（][^()（）]+[\)）]\s*$/, "").trim() || s;
+  return s;
+};
 
 /* ---- 案型估值（business_guide confirmed_price；未列者不顯示金額）---- */
 QJ.CASE_VALUE = { "監護宣告": 20000, "輔助宣告": 20000, "遺囑": 25000 };

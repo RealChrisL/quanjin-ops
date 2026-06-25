@@ -467,7 +467,8 @@
       var r = active[i];
       var ty = toStr(r.案件類型);
       if (ty) typeMap[ty] = (typeMap[ty] || 0) + 1;
-      var ow = toStr(r.承辦人) || "未指派";
+      // 以「解析後的承辦人名」歸戶：uid→名字，且同一人不同寫法（純 uid / 名字 (uid)）合併為一條
+      var ow = (typeof QJ !== "undefined" && QJ.ownerName ? QJ.ownerName(toStr(r.承辦人)) : toStr(r.承辦人)) || "未指派";
       ownerMap[ow] = (ownerMap[ow] || 0) + 1;
     }
     var types = Object.keys(typeMap).sort().map(function (k) { return { label: k, value: typeMap[k] }; });

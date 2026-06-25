@@ -55,15 +55,9 @@
   }
   /* 承辦人顯示名：優先用 uid 對名冊取真實姓名（HSU→徐鈞澤）；否則去掉「(uid)」取名字部分。 */
   function displayOwner(raw) {
-    var s = String(raw == null ? "" : raw).trim();
-    if (!s) return s;
-    var byUid = (window.QJ && QJ.TEAM_BY_UID) || {};
-    var m = s.match(/[\(（]([^()（）]+)[\)）]\s*$/);
-    var uid = m ? m[1].trim() : "";
-    if (uid && byUid[uid]) return byUid[uid];
-    if (byUid[s]) return byUid[s];
-    if (uid) return s.replace(/\s*[\(（][^()（）]+[\)）]\s*$/, "").trim() || s;
-    return s;
+    // 全站唯一解析來源 QJ.ownerName（config.js）；保留同名函式作為呼叫端介面
+    if (window.QJ && QJ.ownerName) return QJ.ownerName(raw);
+    return String(raw == null ? "" : raw).trim();
   }
   /* 客戶顯示名：匿名（只有 LINE userId）客戶 → 「未命名・末6碼」；真正空白才「未具名委託人」。 */
   function clientLabel(name) {
