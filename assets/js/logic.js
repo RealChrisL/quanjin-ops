@@ -106,16 +106,16 @@
     var bestField = "";  // 來源欄位名
 
     if (fields && candidates) {
+      // 優先序 coalesce（非取最新）：依候選順序取「第一個有值」的欄位即停。
       for (var i = 0; i < candidates.length; i++) {
         var key = candidates[i];
         if (!key) continue;
         if (!Object.prototype.hasOwnProperty.call(fields, key)) continue;
         var d = toDate(fields[key]);
         if (!d) continue;
-        if (best === null || d.getTime() > best.getTime()) {
-          best = d;
-          bestField = key;
-        }
+        best = d;
+        bestField = key;
+        break;
       }
     }
 

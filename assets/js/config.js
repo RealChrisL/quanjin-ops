@@ -41,8 +41,10 @@ QJ.FIELD_MAP_DEFAULTS = {
   案號:     ["案號","案件編號","Case No","編號"],
   案件說明: ["需求摘要","對話摘要","案件說明","摘要","Notes"],
   建立時間: ["建立時間","建檔時間","Created","Created time"],
-  // 上次互動時間：多候選，logic.reconcileLastInteraction 取「最新有效值」
-  lastInteractionCandidates: ["最後互動時間","最後音檔時間","最後回覆時間","最後聯絡時間","最後修改時間","Last Modified","建立時間"],
+  // 上次互動時間 = 客戶互動訊號（reconcileLastInteraction 依此「優先序」取第一個有值，非取最新）。
+  // 刻意排除 最後音檔時間 / 最後修改時間 / Last Modified——那些是團隊端或被動更新，
+  // 會把「客戶靜默」訊號洗掉（對齊 bot Guardrail 6：音檔只碰最後音檔時間、不碰最後互動時間）。
+  lastInteractionCandidates: ["最後互動時間","最後回覆時間","最後聯絡時間","建立時間"],
 };
 
 /* ---- CTA → 寫回欄位（值格式對齊 bot 慣例；patchRecord 用語意鍵，airtable.js 解析為實欄位）----

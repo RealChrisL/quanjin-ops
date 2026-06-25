@@ -255,17 +255,15 @@
   /* 上次互動時間：多候選取「最新有效 Date」，並記錄取自哪個欄位。 */
   function reconcileLastInteraction(rawFields, fieldMap) {
     var cands = (fieldMap && fieldMap.lastInteractionCandidates) || [];
-    var best = null;
-    var bestField = "";
+    // 優先序 coalesce（非取最新）：依候選順序取「第一個有值」的欄位即停。
+    // 「最後互動時間」是客戶互動權威欄位；音檔/修改時間已移出候選（對齊 bot Guardrail 6），
+    // 避免團隊端動作把「客戶靜默」訊號洗掉。
     for (var i = 0; i < cands.length; i++) {
       var fname = cands[i];
       var d = toDate(rawFields[fname]);
-      if (d && (!best || d.getTime() > best.getTime())) {
-        best = d;
-        bestField = fname;
-      }
+      if (d) { return { date: d, field: fname }; }
     }
-    return { date: best, field: bestField };
+    return { date: null, field: "" };
   }
 
   function _normalize(raw, fieldMap) {
