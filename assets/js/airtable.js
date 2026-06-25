@@ -431,6 +431,24 @@
       });
   }
 
+  /* ---- CTA 走後端寫回代理（bot-proxy）：POST /cta，回 {ok, fields}；非2xx/解析失敗 → throw ---- */
+  function cta(id, pa) {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/cta";
+    var body = { action: pa.action, recordId: id };
+    if (pa.amount != null) body.amount = pa.amount;
+    if (pa.owner != null) body.owner = pa.owner;
+    return fetch(url, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""), "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok || !j || j.ok !== true) { var e = new Error((j && j.error) || ("後端寫入失敗 HTTP " + r.status)); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+  }
+
   /* ---- 開機時把先前的 fieldMap 載入記憶體（detectSchema 會覆寫）---- */
   QJ.airtable = {
     // 記憶體欄位對應（detectSchema 後填入；clear() 會清空）
@@ -439,6 +457,7 @@
     detectSchema: detectSchema,
     fetchRecords: fetchRecords,
     patchRecord: patchRecord,
+    cta: cta,
     _normalize: _normalize,
     // 對外曝露 reconcile（logic.js 合約也定義同名，但 raw→date 取最新邏輯落在此）
     reconcileLastInteraction: reconcileLastInteraction

@@ -55,17 +55,19 @@
   }
 
   /* ---- CTA：樂觀更新 → PATCH → reconcile / rollback ---- */
-  function doPatch(id, semanticPatch, optimistic, label) {
+  function doPatch(id, semanticPatch, optimistic, label, proxyAction) {
     var rec = findRec(id); if (!rec) return;
     var snapshot = Object.assign({}, rec); // 淺拷貝，保留原始基本值供回滾（fields 為唯讀參照）
     if (optimistic) optimistic(rec);
     analyzeAndRender(true);
     bumpProcessed(+1);
-    QJ.airtable.patchRecord(id, semanticPatch).then(function (updated) {
-      replaceRec(id, updated);            // 以伺服器回傳值校正（單一真實來源）
-      analyzeAndRender(true);
-      log(label, true, "已同步 Airtable");
-      toast("✓ 已同步 Airtable", "ok");
+    var useProxy = !!(QJ.proxyConfigured && QJ.proxyConfigured() && proxyAction);
+    var p = useProxy ? QJ.airtable.cta(id, proxyAction) : QJ.airtable.patchRecord(id, semanticPatch);
+    p.then(function (updated) {
+      if (!useProxy) { replaceRec(id, updated); analyzeAndRender(true); } // 直連：以回傳值校正
+      log(label, true, useProxy ? "已透過後端安全寫入（含鎖／通知／稽核）" : "已同步 Airtable");
+      toast(useProxy ? "✓ 已安全寫入" : "✓ 已同步 Airtable", "ok");
+      if (useProxy) refresh(true); // 代理：以伺服器真相重抓校正
     }).catch(function (e) {
       replaceRec(id, snapshot);           // 失敗回滾
       analyzeAndRender(true);
@@ -90,7 +92,7 @@
     if (cta === "contacted") {
       var rc = findRec(id), pc = { 最後互動時間: nowISO() };
       if (rc && !rc.首次回應時間) pc.首次回應時間 = nowISO(); // 首次團隊回應 → 解鎖回應延遲/平均首覆
-      doPatch(id, pc, function (r) { r.lastInteraction = new Date(); if (rc && !rc.首次回應時間) r.首次回應時間 = new Date(); }, "標記已聯繫");
+      doPatch(id, pc, function (r) { r.lastInteraction = new Date(); if (rc && !rc.首次回應時間) r.首次回應時間 = new Date(); }, "標記已聯繫", { action: "contacted" });
       return;
     }
     if (cta === "amount-confirm") {
@@ -100,7 +102,7 @@
       if (!(n > 0)) { toast("請輸入大於 0 的成交金額。若此案未成交，請改用「送件結案」不填金額（保留待補記）。", "warn"); return; }
       var r0 = findRec(id), patch = { 成交金額: n };
       if (r0 && !r0.結案日期) patch.結案日期 = QJ.todayISODate();
-      doPatch(id, patch, function (r) { r.成交金額 = n; if (!r.結案日期) r.結案日期 = new Date(); }, "補登成交金額");
+      doPatch(id, patch, function (r) { r.成交金額 = n; if (!r.結案日期) r.結案日期 = new Date(); }, "補登成交金額", { action: "amount", amount: n });
       QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
       return;
     }
@@ -114,7 +116,7 @@
       var hasAmt = (v2 != null && v2 !== "" && n2 > 0);
       if (hasAmt) patch2.成交金額 = n2;
       if (rcf && !rcf.首次回應時間) patch2.首次回應時間 = nowISO();
-      doPatch(id, patch2, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (hasAmt) r.成交金額 = n2; if (rcf && !rcf.首次回應時間) r.首次回應時間 = new Date(); }, "送件結案");
+      doPatch(id, patch2, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (hasAmt) r.成交金額 = n2; if (rcf && !rcf.首次回應時間) r.首次回應時間 = new Date(); }, "送件結案", { action: "close", amount: hasAmt ? n2 : undefined });
       QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
       return;
     }
@@ -141,7 +143,7 @@
           var patchR = { 承辦人: val };
           if (wasOpen) patchR.狀態 = QJ.STATUS.HUMAN; // 鏡像 bot：改派即接管，避免 bot 仍自動回覆
           if (rr && !rr.首次回應時間) patchR.首次回應時間 = nowISO();
-          doPatch(rid, patchR, function (r) { r.承辦人 = val; if (wasOpen) r.狀態 = QJ.STATUS.HUMAN; if (rr && !rr.首次回應時間) r.首次回應時間 = new Date(); }, "改派承辦人");
+          doPatch(rid, patchR, function (r) { r.承辦人 = val; if (wasOpen) r.狀態 = QJ.STATUS.HUMAN; if (rr && !rr.首次回應時間) r.首次回應時間 = new Date(); }, "改派承辦人", { action: "reassign", owner: val });
           toast("已改派。注意：同仁不會收到 LINE 通知，請另行口頭告知。", "info");
         }
         t.value = "";

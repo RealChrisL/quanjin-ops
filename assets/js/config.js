@@ -24,7 +24,12 @@ QJ.SETTINGS = {
 };
 
 /* ---- localStorage 鍵名 ---- */
-QJ.LS = { pat:"qj.pat", baseId:"qj.baseId", tableId:"qj.tableId", fieldMap:"qj.fieldMap" };
+QJ.LS = { pat:"qj.pat", baseId:"qj.baseId", tableId:"qj.tableId", fieldMap:"qj.fieldMap", proxyUrl:"qj.proxyUrl", proxyToken:"qj.proxyToken" };
+
+/* ---- 後端寫回代理（bot-proxy）：設定後 CTA 走安全寫回（鎖／側效／稽核）；未設 → 直連 Airtable ---- */
+QJ.proxyUrl = function () { try { return (window.localStorage.getItem(QJ.LS.proxyUrl) || "").replace(/\/+$/, ""); } catch (e) { return ""; } };
+QJ.proxyToken = function () { try { return window.localStorage.getItem(QJ.LS.proxyToken) || ""; } catch (e) { return ""; } };
+QJ.proxyConfigured = function () { return !!(QJ.proxyUrl() && QJ.proxyToken()); };
 
 /* ---- 進度狀態值（對齊生產 CRM 三態，prod 真實值）---- */
 QJ.STATUS = { OPEN:"跟進中", HUMAN:"人工接管中", DONE:"已完成" };
