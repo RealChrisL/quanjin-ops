@@ -265,12 +265,10 @@
     row.appendChild(meta);
 
     var ctrls = el("div", "cta-ctrls");
-    if (act.kind === "pending" || act.kind === "overdue") {
+    if (act.kind === "pending" || act.kind === "overdue" || act.kind === "close") {
+      // 一致排序與字樣：每列皆「標記已聯繫（墨）｜送件結案（綠）」
       ctrls.appendChild(ctaContacted(id));
       ctrls.appendChild(ctaButton("送件結案", "close", id, "cta-ok", false, TIP_CLOSE));
-    } else if (act.kind === "close") {
-      ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok", false, TIP_CLOSE));
-      ctrls.appendChild(ctaContacted(id));
     } else if (act.kind === "amount") {
       ctrls.appendChild(ctaButton("補成交金額", "amount", id, "cta-accent"));
     }
