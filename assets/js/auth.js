@@ -119,8 +119,6 @@
             '<div class="setup-error" id="setup-error" hidden></div>' +
 
             '<button id="btn-save-creds" type="button">啟用戰情室</button>' +
-
-            '<p class="setup-note">寫入代理密鑰用於「改派」即時通知同仁；留空仍可查看與結案。</p>' +
           '</div>' +
         '</div>' +
       '</div>';
