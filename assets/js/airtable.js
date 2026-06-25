@@ -439,7 +439,7 @@
     if (pa.owner != null) body.owner = pa.owner;
     return fetch(url, {
       method: "POST",
-      headers: { "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""), "Content-Type": "application/json" },
+      headers: { "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""), "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
       body: JSON.stringify(body)
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
