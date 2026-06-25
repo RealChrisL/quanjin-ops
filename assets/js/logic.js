@@ -168,42 +168,29 @@
   /* 互動基準時間：客戶最後互動，缺則退回建立時間。 */
   function interactionBase(rec) { return lastInteractionOf(rec) || toDate(rec.建立時間); }
 
-  var DEFAULT_OH = { startHour: 7, endHour: 19, workdays: [1, 2, 3, 4, 5] };
-  function officeHoursPerDay(oh) { oh = oh || DEFAULT_OH; return Math.max(1, oh.endHour - oh.startHour); }
-
-  /* 營業時數：from→to 之間落在「工作日 + 營業時段」內的小時數（15 分鐘步進；超過 21 日直接視為遠逾期，避免長迴圈）。 */
-  function businessHoursBetween(from, to, oh) {
+  /* 經過時數：from→to 的實際經過小時數（不分營業時段；改用真實時間差）。 */
+  function elapsedHours(from, to) {
     if (!from || !to || to <= from) return 0;
-    oh = oh || DEFAULT_OH;
-    if ((to.getTime() - from.getTime()) > 21 * DAY_MS) return 21 * officeHoursPerDay(oh);
-    var work = {}; (oh.workdays || DEFAULT_OH.workdays).forEach(function (d) { work[d] = true; });
-    var STEP = 15 * 60 * 1000, acc = 0, cur = from.getTime(), end = to.getTime();
-    while (cur < end) {
-      var dt = new Date(cur), h = dt.getHours() + dt.getMinutes() / 60;
-      if (work[dt.getDay()] && h >= oh.startHour && h < oh.endHour) acc += STEP;
-      cur += STEP;
-    }
-    return acc / 3600000;
+    return (to.getTime() - from.getTime()) / 3600000;
   }
 
-  /* level：兩段分級（皆以營業時數計）。
-   *   bh ≥ overdueWorkdays × 每日營業時 → 'overdue'（🟠 逾期）
-   *   bh ≥ pendingReplyHours           → 'pending'（🔴 待回）
-   *   否則                              → 'ok'
+  /* level：兩段分級（皆以實際經過小時數計）。
+   *   eh ≥ overdueHours      → 'overdue'（🟠 逾期，預設 24 小時＝1 天）
+   *   eh ≥ pendingReplyHours → 'pending'（🔴 待回，預設 2 小時）
+   *   否則                    → 'ok'
    */
-  function levelOf(bh, settings) {
-    var oh = (settings && settings.officeHours) || DEFAULT_OH;
+  function levelOf(eh, settings) {
     var pendingH = numOr(settings && settings.pendingReplyHours, 2);
-    var overdueH = numOr(settings && settings.overdueWorkdays, 1) * officeHoursPerDay(oh);
-    if (bh >= overdueH) return "overdue";
-    if (bh >= pendingH) return "pending";
+    var overdueH = numOr(settings && settings.overdueHours, 24);
+    if (eh >= overdueH) return "overdue";
+    if (eh >= pendingH) return "pending";
     return "ok";
   }
-  function waitLabelOf(bh, settings) {
-    var perDay = officeHoursPerDay((settings && settings.officeHours) || DEFAULT_OH);
-    if (bh < 1) return "未滿 1 營業時";
-    if (bh < perDay) return Math.round(bh) + " 營業時";
-    return Math.floor(bh / perDay) + " 工作天";
+  /* 等候標籤：實際經過時間 → 「N 分鐘」/「N 小時」/「N 天」。 */
+  function waitLabelOf(eh) {
+    if (eh < 1) { var m = Math.max(1, Math.round(eh * 60)); return m + " 分鐘"; }
+    if (eh < 24) return Math.round(eh) + " 小時";
+    return Math.floor(eh / 24) + " 天";
   }
 
   function numOr(v, dflt) {
@@ -252,19 +239,19 @@
       var rec = recs[i];
       if (isDone(rec)) continue;
       active.push(rec);
-      var bh = businessHoursBetween(interactionBase(rec), now, settings.officeHours);
-      var lv = levelOf(bh, settings);
+      var eh = elapsedHours(interactionBase(rec), now);
+      var lv = levelOf(eh, settings);
       queue.push({
         rec: rec,
         waitDays: computeWaitDays(rec, now),
-        businessHours: bh,
-        waitLabel: waitLabelOf(bh, settings),
+        waitHours: eh,
+        waitLabel: waitLabelOf(eh),
         level: lv,
         nextCTA: nextCTAOf(rec, lv),
       });
     }
-    // 營業時數最久者置頂
-    queue.sort(function (a, b) { return b.businessHours - a.businessHours; });
+    // 等候最久者置頂
+    queue.sort(function (a, b) { return b.waitHours - a.waitHours; });
 
     var pendingRows = queue.filter(function (q) { return q.level === "pending"; }); // 🔴 待回
     var pendingCount = pendingRows.length;
@@ -347,8 +334,8 @@
     // closableToday：今天「可推進結案」的件數 = 待補金額 + 可結案候選。
     var closableToday = closable.length; // 可結案＝人工接管中
     var kpis = {
-      pending: pendingCount,                   // 🔴 待回（≥2 營業時未回）
-      overdueRisk: overdueCount,               // 🟠 逾期（≥1 工作天未互動/結案）
+      pending: pendingCount,                   // 🔴 待回（≥2 小時未回）
+      overdueRisk: overdueCount,               // 🟠 逾期（≥1 天未互動/結案）
       awaiting: active.length,                 // 待處理（非已完成）總數
       closableToday: closableToday,            // 今日可結案推進件數
       monthClosed: monthClosedCount,           // 本月結案件數
@@ -423,8 +410,8 @@
   function buildSummaryText(c) {
     var parts = [];
     parts.push("今日共 " + c.active + " 件進行中案件");
-    if (c.pending > 0) parts.push("🟠 " + c.pending + " 件待回覆（客戶等逾 2 營業時）");
-    if (c.overdue > 0) parts.push("🔴 " + c.overdue + " 件逾期（逾 1 工作天未互動）");
+    if (c.pending > 0) parts.push("🟠 " + c.pending + " 件待回覆（客戶等逾 2 小時）");
+    if (c.overdue > 0) parts.push("🔴 " + c.overdue + " 件逾期（逾 1 天未互動）");
     if ((c.pending || 0) === 0 && (c.overdue || 0) === 0) parts.push("目前無待回/逾期案件");
     if (c.closable > 0) parts.push("有 " + c.closable + " 件可推進結案");
     var head = parts.join("，") + "。";

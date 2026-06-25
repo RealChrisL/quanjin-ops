@@ -55,7 +55,7 @@
 
   /* Base/Table/代理網址皆硬編（私有 repo），只需 PAT。無 → 顯示 Setup Gate 並回 false。 */
   function ensure() {
-    if (lsGet(LS.pat)) {
+    if (lsGet(LS.pat) && lsGet(LS.proxyToken)) {
       showApp();
       return true;
     }
@@ -100,15 +100,14 @@
 
     var creds = getCreds();
     var patVal = esc(creds.pat || "");
-    var hasProxyToken = !!(QJ.proxyToken && QJ.proxyToken());
-    var proxyTokenPH = hasProxyToken ? "已設定（留空＝保留原密鑰）" : "貼上代理密鑰";
+    var proxyTokenPH = "貼上代理密鑰";
 
     host.innerHTML =
       '<div class="setup-gate-wrap">' +
         '<div class="setup-card">' +
           '<div class="setup-head">' +
             '<div class="seal" aria-label="全謹代書印"><span class="seal-grid"><span>全</span><span>謹</span><span>代</span><span>書</span></span></div>' +
-            '<div><h2>營運戰情室</h2><p>連線設定 · 朱墨印譜</p></div>' +
+            '<div><h2>營運戰情室</h2></div>' +
           '</div>' +
           '<div class="setup-body">' +
             '<label for="in-pat"><span class="setup-field-label">Airtable 權杖（PAT）</span>' +
@@ -156,18 +155,22 @@
     clearSetupError();
     var patEl = el("in-pat");
     var pat = patEl ? patEl.value.trim() : "";
+    var proxyTokEl = el("in-proxy-token");
+    var proxyTok = proxyTokEl ? proxyTokEl.value.trim() : "";
 
     if (!pat) {
       showSetupError("請貼上 Airtable 權杖（PAT）後再啟用。");
       if (patEl) { patEl.focus(); }
       return;
     }
+    if (!proxyTok) {
+      showSetupError("請貼上寫入代理密鑰後再啟用。");
+      if (proxyTokEl) { proxyTokEl.focus(); }
+      return;
+    }
 
     save(pat);
-    // 寫入代理密鑰：留空＝保留原密鑰，有填才覆寫（網址硬編在 config）
-    var proxyTokEl = el("in-proxy-token");
-    var proxyTok = proxyTokEl ? proxyTokEl.value.trim() : "";
-    if (proxyTok) { lsSet(LS.proxyToken, proxyTok); }
+    lsSet(LS.proxyToken, proxyTok);
     showApp();
 
     // 交棒給 orchestrator；app.js 尚未載入時不報錯（防禦式呼叫）
