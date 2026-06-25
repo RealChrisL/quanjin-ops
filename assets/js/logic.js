@@ -168,22 +168,36 @@
   /* 互動基準時間：客戶最後互動，缺則退回建立時間。 */
   function interactionBase(rec) { return lastInteractionOf(rec) || toDate(rec.建立時間); }
 
-  /* 經過時數：from→to 的實際經過小時數（不分營業時段；改用真實時間差）。 */
+  /* 經過時數：from→to 的實際經過小時數（不分時段）。逾期門檻用。 */
   function elapsedHours(from, to) {
     if (!from || !to || to <= from) return 0;
     return (to.getTime() - from.getTime()) / 3600000;
   }
 
-  /* level：兩段分級（皆以實際經過小時數計）。
-   *   eh ≥ overdueHours      → 'overdue'（🟠 逾期，預設 24 小時＝1 天）
-   *   eh ≥ pendingReplyHours → 'pending'（🔴 待回，預設 2 小時）
-   *   否則                    → 'ok'
-   */
-  function levelOf(eh, settings) {
-    var pendingH = numOr(settings && settings.pendingReplyHours, 2);
+  /* 營業時數：from→to 落在 TPE 工作日營業時段（預設 09–18）內的小時數。待回門檻用。
+     台北無日光節約 → 以 UTC+8 牆鐘判斷，與瀏覽器時區無關。 */
+  var TPE_OFFSET_MS = 8 * 3600000;
+  var DEFAULT_OH = { startHour: 9, endHour: 18, workdays: [1, 2, 3, 4, 5] };
+  function businessHoursBetween(from, to, oh) {
+    if (!from || !to || to <= from) return 0;
+    oh = oh || DEFAULT_OH;
+    if ((to.getTime() - from.getTime()) > 21 * 86400000) return 21 * Math.max(1, oh.endHour - oh.startHour);
+    var work = {}; (oh.workdays || DEFAULT_OH.workdays).forEach(function (d) { work[d] = true; });
+    var STEP = 15 * 60 * 1000, acc = 0, cur = from.getTime(), end = to.getTime();
+    while (cur < end) {
+      var dt = new Date(cur + TPE_OFFSET_MS), h = dt.getUTCHours() + dt.getUTCMinutes() / 60;
+      if (work[dt.getUTCDay()] && h >= oh.startHour && h < oh.endHour) acc += STEP;
+      cur += STEP;
+    }
+    return acc / 3600000;
+  }
+
+  /* level：逾期＝實際經過 ≥ overdueHours（不分時段）；待回＝營業時段經過 ≥ pendingReplyHours。 */
+  function levelOf(realH, bizH, settings) {
+    var pendingH = numOr(settings && settings.pendingReplyHours, 4);
     var overdueH = numOr(settings && settings.overdueHours, 24);
-    if (eh >= overdueH) return "overdue";
-    if (eh >= pendingH) return "pending";
+    if (realH >= overdueH) return "overdue";
+    if (bizH >= pendingH) return "pending";
     return "ok";
   }
   /* 等候標籤：實際經過時間 → 「N 分鐘」/「N 小時」/「N 天」。 */
@@ -240,7 +254,8 @@
       if (isDone(rec)) continue;
       active.push(rec);
       var eh = elapsedHours(interactionBase(rec), now);
-      var lv = levelOf(eh, settings);
+      var bh = businessHoursBetween(interactionBase(rec), now, settings.officeHours);
+      var lv = levelOf(eh, bh, settings);
       queue.push({
         rec: rec,
         waitDays: computeWaitDays(rec, now),
@@ -410,7 +425,7 @@
   function buildSummaryText(c) {
     var parts = [];
     parts.push("今日共 " + c.active + " 件進行中案件");
-    if (c.pending > 0) parts.push("🟠 " + c.pending + " 件待回覆（客戶等逾 2 小時）");
+    if (c.pending > 0) parts.push("🟠 " + c.pending + " 件待回覆（客戶等逾 4 營業時）");
     if (c.overdue > 0) parts.push("🔴 " + c.overdue + " 件逾期（逾 1 天未互動）");
     if ((c.pending || 0) === 0 && (c.overdue || 0) === 0) parts.push("目前無待回/逾期案件");
     if (c.closable > 0) parts.push("有 " + c.closable + " 件可推進結案");

@@ -16,8 +16,9 @@ QJ.SETTINGS = {
   defaultTableId:"tbldZrv5LeKImXKQN",             // 私有 repo：硬編 Table ID（客戶紀錄）
   proxyUrl:      "https://bribe-handwoven-bobbed.ngrok-free.dev", // 寫入代理（ngrok 保留網域，硬編）
   // 兩段提醒門檻（以「實際經過時間」計，不分營業時段）
-  pendingReplyHours: 2,   // 🔴 待回：超過 N 小時未互動/結案
-  overdueHours:     24,   // 🟠 逾期：超過 N 小時未互動/結案（預設 1 天）
+  officeHours:   { startHour: 9, endHour: 18, workdays: [1, 2, 3, 4, 5] }, // 待回門檻只算 TPE 09:00–18:00 工作日
+  pendingReplyHours: 4,   // 🔴 待回：營業時段（TPE 09–18）內超過 N 小時未互動
+  overdueHours:     24,   // 🟠 逾期：實際經過超過 N 小時（不分時段，預設 1 天）
   pollSeconds:   25,   // 背景輪詢秒數
   monthlyTarget: null, // 本月成交金額目標（可留空 → CTA-first 不強制顯示進度）
   maxReqPerSec:  4,    // Airtable ~5 req/s/base，留餘裕

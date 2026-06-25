@@ -144,7 +144,7 @@
     else if (next === S.OPEN) {
       action = "restore"; label = "交回智能助手";
       confirmMsg = "交回智能助手（恢復跟進）「" + nm + "」？" +
-        ((QJ.proxyConfigured && QJ.proxyConfigured()) ? "\n系統會傳「感謝耐心等候」給客戶。" : "");
+        ((QJ.proxyConfigured && QJ.proxyConfigured()) ? "\n系統會通知客戶已恢復服務。" : "");
     } else if (next === S.DONE) {
       action = "close"; label = "結案";
       confirmMsg = "確定結案「" + nm + "」？\n結案後會從清單移除，需逐筆恢復。";
@@ -170,7 +170,7 @@
           if (wasOpen) patchR.狀態 = QJ.STATUS.HUMAN; // 鏡像 bot：改派即接管，避免 bot 仍自動回覆
           if (rr && !rr.首次回應時間) patchR.首次回應時間 = nowISO();
           doPatch(rid, patchR, function (r) { r.承辦人 = val; if (wasOpen) r.狀態 = QJ.STATUS.HUMAN; if (rr && !rr.首次回應時間) r.首次回應時間 = new Date(); }, "改派承辦人", { action: "reassign", owner: val });
-          toast("已改派。注意：同仁不會收到 LINE 通知，請另行口頭告知。", "info");
+          toast("已改派並已通知該同仁。", "info");
         }
         t.value = "";
       } else if (t && t.classList && t.classList.contains("cta-slice")) {

@@ -110,9 +110,9 @@
             '<div><h2>營運戰情室</h2></div>' +
           '</div>' +
           '<div class="setup-body">' +
-            '<label for="in-pat"><span class="setup-field-label">Airtable 權杖（PAT）</span>' +
+            '<label for="in-pat"><span class="setup-field-label">Airtable PAT</span>' +
               '<input id="in-pat" type="password" autocomplete="off" spellcheck="false" value="' + patVal + '" placeholder="pat..." /></label>' +
-            '<label for="in-proxy-token"><span class="setup-field-label">寫入代理密鑰</span>' +
+            '<label for="in-proxy-token"><span class="setup-field-label">Proxy Key</span>' +
               '<input id="in-proxy-token" type="password" autocomplete="off" spellcheck="false" placeholder="' + proxyTokenPH + '" /></label>' +
 
             '<div class="setup-error" id="setup-error" hidden></div>' +

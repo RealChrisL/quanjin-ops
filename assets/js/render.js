@@ -152,7 +152,7 @@
     var host = $("kpis"); if (!host) return;
     clear(host);
     var k = state.kpis || {};
-    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（2 小時）"));
+    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（4 營業時）"));
     host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🔴 逾期（1 天）"));
     host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "今日可結案"));
     host.appendChild(kpiCell("kpi-money", String(k.monthClosed || 0), "本月結案件數"));
@@ -261,7 +261,6 @@
 
     var meta = el("div", "cta-meta");
     var name = el("div", "cta-name", clientLabel(rec.委託人));
-    if (rec.案號) name.appendChild(el("span", "cta-no", rec.案號));
     meta.appendChild(name);
     var dsc = (ACTION_KIND_LABEL[act.kind] || "");
     if (rec.案件類型) dsc += "｜" + rec.案件類型;
@@ -346,7 +345,7 @@
   /* =============================================================================
    * 貳 · 佇列表
    * ========================================================================== */
-  var QUEUE_COLS = ["委託人", "案號", "案件類型", "承辦人", "狀態", "等候", "下一步"];
+  var QUEUE_COLS = ["委託人", "案件類型", "承辦人", "狀態", "等候", "下一步"];
 
   function buildQueueHead() {
     var thead = el("thead");
@@ -378,11 +377,6 @@
     var tdName = el("td");
     tdName.appendChild(el("span", "client-name", clientLabel(rec.委託人)));
     tr.appendChild(tdName);
-
-    // 案號 (mono)
-    var tdNo = el("td");
-    tdNo.appendChild(el("span", "case-no", rec.案號 || "—"));
-    tr.appendChild(tdNo);
 
     // 案件類型
     tr.appendChild(el("td", null, rec.案件類型 || "—"));
@@ -555,7 +549,6 @@
 
     host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));
     host.appendChild(closedList("各承辦人結案件數", d.byOwner, "by-owner", "本月暫無結案案件", 5));
-    host.appendChild(dealList("可推進結案", d.closable, "closable", "目前無人工接管中案件", "close"));
   }
 
   /* =============================================================================
