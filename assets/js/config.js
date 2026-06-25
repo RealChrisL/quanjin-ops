@@ -13,8 +13,10 @@ QJ.SETTINGS = {
   apiBase:       "https://api.airtable.com/v0",
   metaBase:      "https://api.airtable.com/v0/meta/bases",
   defaultTableId:"", // 留空：由 Setup Gate 貼入（公開 bundle 不放生產 Table ID）
-  overdueDays:   5,    // 逾期門檻（天）
-  soonDays:      3,    // 即將逾期（天）
+  // 兩段提醒門檻（皆以「營業時段」計，只算工作日的營業時數）
+  officeHours:   { startHour: 7, endHour: 19, workdays: [1, 2, 3, 4, 5] }, // 週一~五 07–19（本地時間＝事務所時區）
+  pendingReplyHours: 2,  // 🔴 待回：客戶訊息超過 N 營業時未互動/結案
+  overdueWorkdays:   1,  // 🟠 逾期：超過 N 個工作天未互動/結案
   pollSeconds:   25,   // 背景輪詢秒數
   monthlyTarget: null, // 本月成交金額目標（可留空 → CTA-first 不強制顯示進度）
   maxReqPerSec:  4,    // Airtable ~5 req/s/base，留餘裕

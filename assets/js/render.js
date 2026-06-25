@@ -65,8 +65,9 @@
   }
   var STATUS_DISPLAY = (window.QJ && QJ.STATUS_DISPLAY) || {};
   function statusDisplay(s) { return STATUS_DISPLAY[s] || s || "—"; }
-  var LEVEL_PILL = { overdue: "overdue", soon: "soon", ok: "ok" };
-  var LEVEL_LABEL = { overdue: "逾期", soon: "即將逾期", ok: "正常" };
+  // 待回 = 紅（danger）、逾期 = 琥珀（warn）；對映既有 pill 配色 overdue(紅)/soon(琥珀)
+  var LEVEL_PILL = { pending: "overdue", overdue: "soon", ok: "ok" };
+  var LEVEL_LABEL = { pending: "待回", overdue: "逾期", ok: "正常" };
 
   /* =============================================================================
    * 報頭：民國日期
@@ -88,9 +89,14 @@
 
     var figs = el("div", "sum-figs");
 
+    var f0 = el("span", "sum-fig sum-pending");
+    f0.appendChild(el("b", null, String(s.pending || 0)));
+    f0.appendChild(el("span", null, "件待回覆"));
+    figs.appendChild(f0);
+
     var f1 = el("span", "sum-fig sum-overdue");
     f1.appendChild(el("b", null, String(s.overdue || 0)));
-    f1.appendChild(el("span", null, "件逾期待處理"));
+    f1.appendChild(el("span", null, "件逾期"));
     figs.appendChild(f1);
 
     var f2 = el("span", "sum-fig sum-closable");
@@ -114,8 +120,8 @@
     var host = $("kpis"); if (!host) return;
     clear(host);
     var k = state.kpis || {};
-    host.appendChild(kpiCell("kpi-await", String(k.awaiting || 0), "待回覆案件"));
-    host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "逾期風險"));
+    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🔴 待回（2 營業時）"));
+    host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🟠 逾期（1 工作天）"));
     host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "今日可結案"));
     host.appendChild(kpiCell("kpi-money", fmtMoney(k.monthAmount), "本月成交金額"));
     host.appendChild(kpiCell("kpi-overload", String(k.overloadedOwners || 0), "超載承辦人"));
@@ -124,7 +130,7 @@
   /* =============================================================================
    * 壹 · CTA 待辦行動
    * ========================================================================== */
-  var ACTION_KIND_LABEL = { overdue: "逾期跟進", close: "可結案", amount: "待補金額" };
+  var ACTION_KIND_LABEL = { pending: "待回覆", overdue: "逾期跟進", close: "可結案", amount: "待補金額" };
 
   function ctaButton(label, ctaType, id, variant, disabled, title) {
     var b = el("button", "cta" + (variant ? " " + variant : ""), label);
@@ -185,7 +191,7 @@
     var ctrls = el("div", "cta-ctrls");
     var id = act.id || rec.id;
 
-    if (act.kind === "overdue") {
+    if (act.kind === "pending" || act.kind === "overdue") {
       ctrls.appendChild(ctaContacted(id));
       ctrls.appendChild(ctaButton("標記可結案", "close", id, "cta-ok"));
     } else if (act.kind === "close") {
@@ -240,7 +246,7 @@
   /* =============================================================================
    * 貳 · 佇列表
    * ========================================================================== */
-  var QUEUE_COLS = ["委託人", "案號", "案件類型", "承辦人", "狀態", "等候天數", "下一步"];
+  var QUEUE_COLS = ["委託人", "案號", "案件類型", "承辦人", "狀態", "等候", "下一步"];
 
   function buildQueueHead() {
     var thead = el("thead");
@@ -297,7 +303,7 @@
 
     // 等候天數
     var tdWait = el("td");
-    var w = el("span", "wait-days lvl-" + (item.level || "ok"), fmtDays(item.waitDays));
+    var w = el("span", "wait-days lvl-" + (item.level || "ok"), item.waitLabel || fmtDays(item.waitDays));
     tdWait.appendChild(w);
     tr.appendChild(tdWait);
 

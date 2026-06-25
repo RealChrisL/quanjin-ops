@@ -165,18 +165,45 @@
     return Math.floor(diff / DAY_MS);
   }
 
-  /* ---------------------------------------------------------------------------
-   * level：逾期分級。
-   *   waitDays ≥ overdueDays → 'overdue'
-   *   waitDays ≥ soonDays    → 'soon'
-   *   否則                    → 'ok'
-   * ------------------------------------------------------------------------- */
-  function levelOf(waitDays, settings) {
-    var overdue = numOr(settings && settings.overdueDays, 5);
-    var soon = numOr(settings && settings.soonDays, 3);
-    if (waitDays >= overdue) return "overdue";
-    if (waitDays >= soon) return "soon";
+  /* 互動基準時間：客戶最後互動，缺則退回建立時間。 */
+  function interactionBase(rec) { return lastInteractionOf(rec) || toDate(rec.建立時間); }
+
+  var DEFAULT_OH = { startHour: 7, endHour: 19, workdays: [1, 2, 3, 4, 5] };
+  function officeHoursPerDay(oh) { oh = oh || DEFAULT_OH; return Math.max(1, oh.endHour - oh.startHour); }
+
+  /* 營業時數：from→to 之間落在「工作日 + 營業時段」內的小時數（15 分鐘步進；超過 21 日直接視為遠逾期，避免長迴圈）。 */
+  function businessHoursBetween(from, to, oh) {
+    if (!from || !to || to <= from) return 0;
+    oh = oh || DEFAULT_OH;
+    if ((to.getTime() - from.getTime()) > 21 * DAY_MS) return 21 * officeHoursPerDay(oh);
+    var work = {}; (oh.workdays || DEFAULT_OH.workdays).forEach(function (d) { work[d] = true; });
+    var STEP = 15 * 60 * 1000, acc = 0, cur = from.getTime(), end = to.getTime();
+    while (cur < end) {
+      var dt = new Date(cur), h = dt.getHours() + dt.getMinutes() / 60;
+      if (work[dt.getDay()] && h >= oh.startHour && h < oh.endHour) acc += STEP;
+      cur += STEP;
+    }
+    return acc / 3600000;
+  }
+
+  /* level：兩段分級（皆以營業時數計）。
+   *   bh ≥ overdueWorkdays × 每日營業時 → 'overdue'（🟠 逾期）
+   *   bh ≥ pendingReplyHours           → 'pending'（🔴 待回）
+   *   否則                              → 'ok'
+   */
+  function levelOf(bh, settings) {
+    var oh = (settings && settings.officeHours) || DEFAULT_OH;
+    var pendingH = numOr(settings && settings.pendingReplyHours, 2);
+    var overdueH = numOr(settings && settings.overdueWorkdays, 1) * officeHoursPerDay(oh);
+    if (bh >= overdueH) return "overdue";
+    if (bh >= pendingH) return "pending";
     return "ok";
+  }
+  function waitLabelOf(bh, settings) {
+    var perDay = officeHoursPerDay((settings && settings.officeHours) || DEFAULT_OH);
+    if (bh < 1) return "未滿 1 營業時";
+    if (bh < perDay) return Math.round(bh) + " 營業時";
+    return Math.floor(bh / perDay) + " 工作天";
   }
 
   function numOr(v, dflt) {
@@ -199,7 +226,7 @@
    *   其他               → 標記已聯繫
    * ------------------------------------------------------------------------- */
   function nextCTAOf(rec, level) {
-    if (level === "overdue") {
+    if (level === "pending" || level === "overdue") {
       return { type: "contacted", label: "標記已聯繫" };
     }
     if (isHuman(rec)) {
@@ -225,19 +252,23 @@
       var rec = recs[i];
       if (isDone(rec)) continue;
       active.push(rec);
-      var wd = computeWaitDays(rec, now);
-      var lv = levelOf(wd, settings);
+      var bh = businessHoursBetween(interactionBase(rec), now, settings.officeHours);
+      var lv = levelOf(bh, settings);
       queue.push({
         rec: rec,
-        waitDays: wd,
+        waitDays: computeWaitDays(rec, now),
+        businessHours: bh,
+        waitLabel: waitLabelOf(bh, settings),
         level: lv,
         nextCTA: nextCTAOf(rec, lv),
       });
     }
-    // 等候最久者置頂
-    queue.sort(function (a, b) { return b.waitDays - a.waitDays; });
+    // 營業時數最久者置頂
+    queue.sort(function (a, b) { return b.businessHours - a.businessHours; });
 
-    var overdueRows = queue.filter(function (q) { return q.level === "overdue"; });
+    var pendingRows = queue.filter(function (q) { return q.level === "pending"; }); // 🔴 待回
+    var pendingCount = pendingRows.length;
+    var overdueRows = queue.filter(function (q) { return q.level === "overdue"; }); // 🟠 逾期
     var overdueCount = overdueRows.length;
 
     /* ---- deal：可結案 / 待補金額 ---- */
@@ -279,7 +310,7 @@
       var owner = toStr(q.rec.承辦人) || "未指派";
       if (!teamMap[owner]) teamMap[owner] = { active: 0, overdue: 0 };
       teamMap[owner].active += 1;
-      if (q.level === "overdue") teamMap[owner].overdue += 1;
+      if (q.level === "overdue" || q.level === "pending") teamMap[owner].overdue += 1; // 待跟進＝待回+逾期
     }
     var ownerNames = Object.keys(teamMap);
 
@@ -313,8 +344,9 @@
     // closableToday：今天「可推進結案」的件數 = 待補金額 + 可結案候選。
     var closableToday = pendingAmount.length + closable.length;
     var kpis = {
+      pending: pendingCount,                   // 🔴 待回（≥2 營業時未回）
+      overdueRisk: overdueCount,               // 🟠 逾期（≥1 工作天未互動/結案）
       awaiting: active.length,                 // 待處理（非已完成）總數
-      overdueRisk: overdueCount,               // 逾期風險件數
       closableToday: closableToday,            // 今日可結案推進件數
       monthAmount: monthAmount,                // 本月成交金額
       overloadedOwners: overloadedOwners,      // 過載承辦人數
@@ -323,29 +355,30 @@
     /* ---- actions：本日待辦行動（CTA-first）----
      * 順序：先「補金額 + 結案」（聚焦結案＋補金額），再「逾期追蹤」。
      */
+    // 積極跟進優先：先 待回 → 逾期 → 補金額 → 結案
     var actions = [];
+    pendingRows.forEach(function (q) {
+      actions.push({
+        id: q.rec.id, kind: "pending", rec: q.rec,
+        label: "待回覆：" + (toStr(q.rec.委託人) || "（未具名）") + "（客戶已等 " + q.waitLabel + "）",
+      });
+    });
+    overdueRows.forEach(function (q) {
+      actions.push({
+        id: q.rec.id, kind: "overdue", rec: q.rec,
+        label: "逾期跟進：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitLabel + "未互動）",
+      });
+    });
     pendingAmount.forEach(function (r) {
       actions.push({
-        id: r.id,
-        kind: "amount",
-        rec: r,
+        id: r.id, kind: "amount", rec: r,
         label: "補登成交金額：" + (toStr(r.委託人) || "（未具名）"),
       });
     });
     closable.forEach(function (r) {
       actions.push({
-        id: r.id,
-        kind: "close",
-        rec: r,
+        id: r.id, kind: "close", rec: r,
         label: "送件結案：" + (toStr(r.委託人) || "（未具名）"),
-      });
-    });
-    overdueRows.forEach(function (q) {
-      actions.push({
-        id: q.rec.id,
-        kind: "overdue",
-        rec: q.rec,
-        label: "逾期追蹤：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitDays + " 天未互動）",
       });
     });
 
@@ -358,6 +391,7 @@
 
     /* ---- summary：單一份每日中文摘要（非早晚兩段）---- */
     var summaryText = buildSummaryText({
+      pending: pendingCount,
       overdue: overdueCount,
       closable: closableToday,
       pendingAmount: pendingAmount.length,
@@ -368,7 +402,7 @@
     var charts = buildCharts(active, recs, now, monthlyTarget);
 
     return {
-      summary: { text: summaryText, overdue: overdueCount, closable: closableToday },
+      summary: { text: summaryText, pending: pendingCount, overdue: overdueCount, closable: closableToday },
       kpis: kpis,
       queue: queue,
       team: team,
@@ -391,23 +425,16 @@
   function buildSummaryText(c) {
     var parts = [];
     parts.push("今日共 " + c.active + " 件進行中案件");
-    if (c.overdue > 0) {
-      parts.push("其中 " + c.overdue + " 件已逾期待追蹤");
-    } else {
-      parts.push("目前無逾期案件");
-    }
-    if (c.closable > 0) {
-      parts.push("有 " + c.closable + " 件可推進結案");
-    }
-    if (c.pendingAmount > 0) {
-      parts.push("另有 " + c.pendingAmount + " 件已結案待補登成交金額");
-    }
+    if (c.pending > 0) parts.push("🔴 " + c.pending + " 件待回覆（客戶等逾 2 營業時）");
+    if (c.overdue > 0) parts.push("🟠 " + c.overdue + " 件逾期（逾 1 工作天未互動）");
+    if ((c.pending || 0) === 0 && (c.overdue || 0) === 0) parts.push("目前無待回/逾期案件");
+    if (c.closable > 0) parts.push("有 " + c.closable + " 件可推進結案");
+    if (c.pendingAmount > 0) parts.push("另有 " + c.pendingAmount + " 件已結案待補登成交金額");
     var head = parts.join("，") + "。";
-    // 收尾：CTA-first 語氣，提示先處理結案與補金額
-    if (c.closable > 0 || c.pendingAmount > 0) {
-      head += "建議優先處理結案與補登金額，再追蹤逾期案件。";
-    } else if (c.overdue > 0) {
-      head += "建議優先追蹤逾期案件。";
+    if (c.pending > 0 || c.overdue > 0) {
+      head += "請積極跟進——回覆客戶，或處理結案。";
+    } else if (c.closable > 0 || c.pendingAmount > 0) {
+      head += "建議處理結案與補登金額。";
     } else {
       head += "案況穩定，持續跟進即可。";
     }
