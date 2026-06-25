@@ -49,6 +49,14 @@
     });
   }
 
+  /* 24/7 代理戰績橫幅：獨立於 25 秒紀錄輪詢（這些數字不會分秒變動）。失敗 → 橫幅隱藏。 */
+  function refreshStats() {
+    if (!QJ.airtable.fetchStats) return;
+    QJ.airtable.fetchStats().then(function (s) {
+      if (QJ.render && QJ.render.renderAgentBanner) QJ.render.renderAgentBanner(s);
+    });
+  }
+
   function startPolling() {
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(function () {
@@ -189,6 +197,8 @@
       return refresh(false);
     }).then(function () {
       startPolling();
+      refreshStats();
+      if (!state.statsTimer) state.statsTimer = setInterval(refreshStats, 120000);
       state.booting = false;
     }).catch(function (e) {
       state.booting = false;

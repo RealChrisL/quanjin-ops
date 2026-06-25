@@ -450,6 +450,15 @@
     });
   }
 
+  /* ---- 24/7 代理戰績：GET /stats（唯讀彙總，無 PII，免授權如 /health）。失敗回 null ---- */
+  function fetchStats() {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/stats";
+    if (!url || url === "/stats") { return Promise.resolve(null); }
+    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
   /* ---- 開機時把先前的 fieldMap 載入記憶體（detectSchema 會覆寫）---- */
   QJ.airtable = {
     // 記憶體欄位對應（detectSchema 後填入；clear() 會清空）
@@ -459,6 +468,7 @@
     fetchRecords: fetchRecords,
     patchRecord: patchRecord,
     cta: cta,
+    fetchStats: fetchStats,
     _normalize: _normalize,
     // 對外曝露 reconcile（logic.js 合約也定義同名，但 raw→date 取最新邏輯落在此）
     reconcileLastInteraction: reconcileLastInteraction

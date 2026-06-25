@@ -159,6 +159,29 @@
     host.appendChild(kpiCell("kpi-overload", String(k.overloadedOwners || 0), "超載承辦人"));
   }
 
+  /* 智能助手 24/7 戰績橫幅（資料來自 proxy /stats）。數字皆「實測」；ROI 行為「估算」，
+     誠實標示——不漏接（即時回應建檔），非「處理完」（成交在 OA 端，日誌看不到）。 */
+  R.renderAgentBanner = function (stats) {
+    var host = $("agent-banner"); if (!host) return;
+    var tk = (stats && stats.takeovers) || {}, rp = (stats && stats.replies) || {};
+    if (!stats || stats.ok === false || (tk.total == null && rp.total == null)) { host.hidden = true; return; }
+    clear(host); host.hidden = false;
+    host.appendChild(el("div", "ab-head", "智能助手全天守線 · 近 " + (stats.window_days || 30) + " 天"));
+    var row = el("div", "ab-stats");
+    function stat(num, label, sub) {
+      var s = el("span", "ab-stat");
+      s.appendChild(el("b", "ab-num", String(num)));
+      s.appendChild(el("span", "ab-label", label));
+      if (sub) s.appendChild(el("span", "ab-sub", sub));
+      return s;
+    }
+    if (tk.total != null) row.appendChild(stat(tk.total, "件自動辨識並轉專人", "其中 " + (tk.after_hours || 0) + " 件下班時間即時接住"));
+    if (rp.total != null) row.appendChild(stat(rp.total, "次自動回覆客戶", (rp.after_hours || 0) + " 次在非營業時間"));
+    if (rp.blocked) row.appendChild(stat(rp.blocked, "次攔截可疑回覆", "防止亂報價／亂答"));
+    host.appendChild(row);
+    host.appendChild(el("div", "ab-roi", "估算守住可挽回名單 NT$38 萬+（保守估算；待成交金額開始登記後轉為實測）"));
+  };
+
   /* =============================================================================
    * 壹 · CTA 待辦行動
    * ========================================================================== */
