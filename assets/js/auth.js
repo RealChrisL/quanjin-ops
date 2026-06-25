@@ -53,11 +53,9 @@
    * 公開 API
    * ===================================================================== */
 
-  /* 有無有效憑證（PAT + Base ID 皆存在）。無 → 顯示 Setup Gate 並回 false。 */
+  /* Base/Table/代理網址皆硬編（私有 repo），只需 PAT。無 → 顯示 Setup Gate 並回 false。 */
   function ensure() {
-    var pat = lsGet(LS.pat);
-    var baseId = lsGet(LS.baseId);
-    if (pat && baseId) {
+    if (lsGet(LS.pat)) {
       showApp();
       return true;
     }
@@ -66,23 +64,18 @@
     return false;
   }
 
-  /* 取得憑證；tableId 缺省回 SETTINGS.defaultTableId。 */
+  /* 取得憑證；Base/Table 硬編，只有 PAT 來自本機。 */
   function getCreds() {
     return {
       pat: lsGet(LS.pat) || "",
-      baseId: lsGet(LS.baseId) || "",
-      tableId: lsGet(LS.tableId) || SETTINGS.defaultTableId
+      baseId: SETTINGS.defaultBaseId,
+      tableId: SETTINGS.defaultTableId
     };
   }
 
-  /* 儲存憑證；tableId 留空時用 defaultTableId。 */
-  function save(pat, baseId, tableId) {
-    pat = (pat || "").trim();
-    baseId = (baseId || "").trim();
-    tableId = (tableId || "").trim() || SETTINGS.defaultTableId;
-    lsSet(LS.pat, pat);
-    lsSet(LS.baseId, baseId);
-    lsSet(LS.tableId, tableId);
+  /* 儲存 PAT（Base/Table 硬編，不存）。 */
+  function save(pat) {
+    lsSet(LS.pat, (pat || "").trim());
     return getCreds();
   }
 
@@ -107,9 +100,6 @@
 
     var creds = getCreds();
     var patVal = esc(creds.pat || "");
-    var baseVal = esc(creds.baseId || "");
-    var tableVal = esc(creds.tableId || SETTINGS.defaultTableId);
-    var proxyUrlVal = esc((QJ.proxyUrl && QJ.proxyUrl()) || "");
     var hasProxyToken = !!(QJ.proxyToken && QJ.proxyToken());
     var proxyTokenPH = hasProxyToken ? "已設定（留空＝保留原密鑰）" : "貼上代理密鑰";
 
@@ -121,27 +111,16 @@
             '<div><h2>營運戰情室</h2><p>連線設定 · 朱墨印譜</p></div>' +
           '</div>' +
           '<div class="setup-body">' +
-            '<label for="in-pat"><span class="setup-field-label">Airtable Personal Access Token</span>' +
+            '<label for="in-pat"><span class="setup-field-label">Airtable 權杖（PAT）</span>' +
               '<input id="in-pat" type="password" autocomplete="off" spellcheck="false" value="' + patVal + '" placeholder="pat..." /></label>' +
-            '<label for="in-base"><span class="setup-field-label">Base ID</span>' +
-              '<input id="in-base" type="text" autocomplete="off" spellcheck="false" value="' + baseVal + '" placeholder="app..." /></label>' +
-            '<label for="in-table"><span class="setup-field-label">Table ID</span>' +
-              '<input id="in-table" type="text" autocomplete="off" spellcheck="false" value="' + tableVal + '" placeholder="tbl..." /></label>' +
-
-            '<details class="setup-adv"' + (proxyUrlVal ? ' open' : '') + '>' +
-              '<summary>進階設定 · 團隊寫入代理（選填）</summary>' +
-              '<label for="in-proxy-url"><span class="setup-field-label">寫入代理網址</span>' +
-                '<input id="in-proxy-url" type="text" autocomplete="off" spellcheck="false" value="' + proxyUrlVal + '" placeholder="https://...ngrok-free.dev" /></label>' +
-              '<label for="in-proxy-token"><span class="setup-field-label">寫入代理密鑰</span>' +
-                '<input id="in-proxy-token" type="password" autocomplete="off" spellcheck="false" placeholder="' + proxyTokenPH + '" /></label>' +
-              '<p class="setup-note">填了才會啟用「改派」即時通知同仁與自動接管；留空則改派只更新欄位、不另行通知。</p>' +
-            '</details>' +
+            '<label for="in-proxy-token"><span class="setup-field-label">寫入代理密鑰</span>' +
+              '<input id="in-proxy-token" type="password" autocomplete="off" spellcheck="false" placeholder="' + proxyTokenPH + '" /></label>' +
 
             '<div class="setup-error" id="setup-error" hidden></div>' +
 
             '<button id="btn-save-creds" type="button">啟用戰情室</button>' +
 
-            '<p class="setup-note">資料只在 Airtable 與本機之間直連，不經第三方。憑證僅存於這台瀏覽器，可隨時清除。公開網址不存放任何客戶資料——沒有權杖什麼都看不到。</p>' +
+            '<p class="setup-note">憑證僅存於這台瀏覽器，可隨時清除。寫入代理密鑰用於「改派」即時通知同仁；留空仍可查看與結案。</p>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -151,7 +130,7 @@
     if (btn) { btn.addEventListener("click", onSaveClick); }
 
     // Enter 鍵亦可送出（任一輸入框）
-    ["in-pat", "in-base", "in-table"].forEach(function (id) {
+    ["in-pat", "in-proxy-token"].forEach(function (id) {
       var inp = el(id);
       if (inp) {
         inp.addEventListener("keydown", function (ev) {
@@ -178,30 +157,18 @@
   function onSaveClick() {
     clearSetupError();
     var patEl = el("in-pat");
-    var baseEl = el("in-base");
-    var tableEl = el("in-table");
-
     var pat = patEl ? patEl.value.trim() : "";
-    var baseId = baseEl ? baseEl.value.trim() : "";
-    var tableId = tableEl ? tableEl.value.trim() : "";
 
     if (!pat) {
       showSetupError("請貼上 Airtable 權杖（PAT）後再啟用。");
       if (patEl) { patEl.focus(); }
       return;
     }
-    if (!baseId) {
-      showSetupError("請填入 Base ID（以 app 開頭）後再啟用。");
-      if (baseEl) { baseEl.focus(); }
-      return;
-    }
 
-    save(pat, baseId, tableId);
-    // 寫入代理（選填）：URL 有填就存、清空就移除；密鑰留空＝保留原密鑰，有填才覆寫
-    var proxyUrlEl = el("in-proxy-url"), proxyTokEl = el("in-proxy-token");
-    var proxyUrl = proxyUrlEl ? proxyUrlEl.value.trim() : "";
+    save(pat);
+    // 寫入代理密鑰：留空＝保留原密鑰，有填才覆寫（網址硬編在 config）
+    var proxyTokEl = el("in-proxy-token");
     var proxyTok = proxyTokEl ? proxyTokEl.value.trim() : "";
-    if (proxyUrl) { lsSet(LS.proxyUrl, proxyUrl); } else { lsRemove(LS.proxyUrl); }
     if (proxyTok) { lsSet(LS.proxyToken, proxyTok); }
     showApp();
 

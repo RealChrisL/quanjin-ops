@@ -12,7 +12,9 @@ window.QJ = window.QJ || {};
 QJ.SETTINGS = {
   apiBase:       "https://api.airtable.com/v0",
   metaBase:      "https://api.airtable.com/v0/meta/bases",
-  defaultTableId:"", // 留空：由 Setup Gate 貼入（公開 bundle 不放生產 Table ID）
+  defaultBaseId: "appJRa7cIVBCz5xDD",            // 私有 repo：硬編 Base ID
+  defaultTableId:"tbldZrv5LeKImXKQN",             // 私有 repo：硬編 Table ID（客戶紀錄）
+  proxyUrl:      "https://bribe-handwoven-bobbed.ngrok-free.dev", // 寫入代理（ngrok 保留網域，硬編）
   // 兩段提醒門檻（皆以「營業時段」計，只算工作日的營業時數）
   officeHours:   { startHour: 7, endHour: 19, workdays: [1, 2, 3, 4, 5] }, // 週一~五 07–19（本地時間＝事務所時區）
   pendingReplyHours: 2,  // 🔴 待回：客戶訊息超過 N 營業時未互動/結案
@@ -27,7 +29,7 @@ QJ.SETTINGS = {
 QJ.LS = { pat:"qj.pat", baseId:"qj.baseId", tableId:"qj.tableId", fieldMap:"qj.fieldMap", proxyUrl:"qj.proxyUrl", proxyToken:"qj.proxyToken" };
 
 /* ---- 後端寫回代理（bot-proxy）：設定後 CTA 走安全寫回（鎖／側效／稽核）；未設 → 直連 Airtable ---- */
-QJ.proxyUrl = function () { try { return (window.localStorage.getItem(QJ.LS.proxyUrl) || "").replace(/\/+$/, ""); } catch (e) { return ""; } };
+QJ.proxyUrl = function () { return (QJ.SETTINGS.proxyUrl || "").replace(/\/+$/, ""); }; // 硬編，不再由使用者填
 QJ.proxyToken = function () { try { return window.localStorage.getItem(QJ.LS.proxyToken) || ""; } catch (e) { return ""; } };
 QJ.proxyConfigured = function () { return !!(QJ.proxyUrl() && QJ.proxyToken()); };
 
