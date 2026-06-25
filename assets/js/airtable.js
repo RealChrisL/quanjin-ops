@@ -291,6 +291,7 @@
     return {
       id: raw && raw.id ? raw.id : "",
       委託人:   coalesceName(f) || toStr(mapped(f, fieldMap, "委託人")),
+      電話:     toStr(mapped(f, fieldMap, "電話")),
       案件類型: toStr(mapped(f, fieldMap, "案件類型")),
       承辦人:   toStr(mapped(f, fieldMap, "承辦人")),
       狀態:     toStr(mapped(f, fieldMap, "狀態")),

@@ -154,7 +154,7 @@
     var k = state.kpis || {};
     host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（4 營業時）"));
     host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🔴 逾期（1 天）"));
-    host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "今日可結案"));
+    host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "人工接管中"));
     host.appendChild(kpiCell("kpi-money", String(k.monthClosed || 0), "本月結案件數"));
     host.appendChild(kpiCell("kpi-overload", String(k.overloadedOwners || 0), "超載承辦人"));
   }
@@ -270,8 +270,9 @@
     // 等候時間 ＋ 待辦事項（行動上下文）
     var extra = el("div", "cta-extra");
     if (act.waitLabel) extra.appendChild(el("span", "cta-chip cta-wait", "已等 " + act.waitLabel));
+    if (rec.電話) { var ph = el("a", "cta-chip cta-phone", "📞 " + rec.電話); ph.setAttribute("href", "tel:" + rec.電話); extra.appendChild(ph); }
     var cv = (window.QJ && QJ.caseValue) ? QJ.caseValue(rec.案件類型) : null;
-    if (cv) extra.appendChild(el("span", "cta-chip cta-value", "約值 NT$" + cv.toLocaleString("en-US") + (act.kind === "overdue" ? "・正在變冷" : "")));
+    if (cv) extra.appendChild(el("span", "cta-chip cta-value", "約值 NT$" + cv.toLocaleString("en-US")));
     if (extra.childNodes.length) meta.appendChild(extra);
     var todos = rec.待辦事項 ? String(rec.待辦事項).replace(/\s*\n+\s*/g, "；").trim() : "";
     if (todos) {
@@ -284,7 +285,7 @@
     if (act.kind === "pending" || act.kind === "overdue" || act.kind === "close") {
       // 一致排序與字樣：每列皆「標記已聯繫（墨）｜送件結案（綠）」
       ctrls.appendChild(ctaContacted(id));
-      ctrls.appendChild(ctaButton("送件結案", "close", id, "cta-ok", false, TIP_CLOSE));
+      ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok", false, TIP_CLOSE));
     } else if (act.kind === "amount") {
       ctrls.appendChild(ctaButton("補成交金額", "amount", id, "cta-accent"));
     }
@@ -376,6 +377,7 @@
     // 委託人
     var tdName = el("td");
     tdName.appendChild(el("span", "client-name", clientLabel(rec.委託人)));
+    if (rec.電話) tdName.appendChild(el("a", "client-phone", "📞 " + rec.電話)).setAttribute("href", "tel:" + rec.電話);
     tr.appendChild(tdName);
 
     // 案件類型
@@ -569,7 +571,7 @@
       head.appendChild(avatar(t.owner, { title: true }));
       var hwrap = el("div");
       hwrap.appendChild(el("div", "team-name", displayOwner(t.owner) || "未指派"));
-      hwrap.appendChild(el("div", "team-load-label", "負荷指數 " + (t.load != null ? t.load : "—")));
+      hwrap.appendChild(el("div", "team-load-label", "進行中 " + (t.load != null ? t.load : "—") + " 件"));
       head.appendChild(hwrap);
       card.appendChild(head);
 

@@ -231,7 +231,7 @@
       return { type: "contacted", label: "標記已聯繫" };
     }
     if (isHuman(rec)) {
-      return { type: "close", label: "送件結案" };
+      return { type: "close", label: "結案" };
     }
     return { type: "contacted", label: "標記已聯繫" };
   }
@@ -377,7 +377,7 @@
     closable.forEach(function (r) {
       actions.push({
         id: r.id, kind: "close", rec: r,
-        label: "送件結案：" + (toStr(r.委託人) || "（未具名）"),
+        label: "結案：" + (toStr(r.委託人) || "（未具名）"),
       });
     });
 
