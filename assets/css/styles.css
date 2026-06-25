@@ -232,8 +232,8 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 .summary .sum-figs { margin-top:10px; display:flex; gap:24px; flex-wrap:wrap; font-size:14px; }
 .summary .sum-fig { display:inline-flex; align-items:baseline; gap:7px; }
 .summary .sum-fig b { font-family:var(--fm); font-size:21px; }
-.summary .sum-pending b { color:var(--danger); }
-.summary .sum-overdue b { color:var(--warn); }
+.summary .sum-pending b { color:var(--warn); }
+.summary .sum-overdue b { color:var(--danger); }
 .summary .sum-closable b { color:var(--ok); }
 .summary .sum-fig span { color:var(--ink2); font-size:13px; }
 
@@ -268,8 +268,8 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
   padding:12px 14px;
   display:flex; align-items:center; gap:14px; flex-wrap:wrap;
 }
-.cta-row.kind-pending { border-left:6px solid var(--danger); }
-.cta-row.kind-overdue { border-left:6px solid var(--warn); }
+.cta-row.kind-pending { border-left:6px solid var(--warn); }
+.cta-row.kind-overdue { border-left:6px solid var(--danger); }
 .cta-extra { margin-top:6px; display:flex; flex-wrap:wrap; gap:6px; }
 .cta-chip { font-family:var(--fb); font-size:11.5px; padding:2px 8px; border:1px solid var(--rule2); background:var(--panel2); color:var(--ink2); }
 .cta-chip.cta-wait { color:var(--accent); border-color:var(--accent); font-weight:600; }
@@ -344,8 +344,8 @@ table.queue tbody td {
 }
 table.queue tbody tr { background:var(--panel); }
 table.queue tbody tr:nth-child(even) { background:var(--panel2); }
-table.queue tbody tr.lvl-pending td:first-child { box-shadow:inset 3px 0 0 0 var(--danger); }
-table.queue tbody tr.lvl-overdue td:first-child { box-shadow:inset 3px 0 0 0 var(--warn); }
+table.queue tbody tr.lvl-pending td:first-child { box-shadow:inset 3px 0 0 0 var(--warn); }
+table.queue tbody tr.lvl-overdue td:first-child { box-shadow:inset 3px 0 0 0 var(--danger); }
 table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 @keyframes row-flash {
   0%   { background:rgba(192,57,43,.22); }
@@ -366,8 +366,8 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 .case-no { font-family:var(--fm); font-size:12.5px; color:var(--ink2); }
 .client-name { font-weight:700; }
 .wait-days { font-family:var(--fm); font-weight:500; }
-.wait-days.lvl-pending { color:var(--danger); font-weight:700; }
-.wait-days.lvl-overdue { color:var(--warn); }
+.wait-days.lvl-pending { color:var(--warn); }
+.wait-days.lvl-overdue { color:var(--danger); font-weight:700; }
 
 /* 狀態藥丸 */
 .pill {

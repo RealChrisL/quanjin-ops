@@ -86,7 +86,7 @@
   var STATUS_DISPLAY = (window.QJ && QJ.STATUS_DISPLAY) || {};
   function statusDisplay(s) { return STATUS_DISPLAY[s] || s || "—"; }
   // 待回 = 紅（danger）、逾期 = 琥珀（warn）；對映既有 pill 配色 overdue(紅)/soon(琥珀)
-  var LEVEL_PILL = { pending: "overdue", overdue: "soon", ok: "ok" };
+  var LEVEL_PILL = { pending: "soon", overdue: "overdue", ok: "ok" };
   var LEVEL_LABEL = { pending: "待回", overdue: "逾期", ok: "正常" };
 
   /* =============================================================================
@@ -140,8 +140,8 @@
     var host = $("kpis"); if (!host) return;
     clear(host);
     var k = state.kpis || {};
-    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🔴 待回（2 營業時）"));
-    host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🟠 逾期（1 工作天）"));
+    host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（2 營業時）"));
+    host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🔴 逾期（1 工作天）"));
     host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "今日可結案"));
     host.appendChild(kpiCell("kpi-money", fmtMoney(k.monthAmount), "本月成交金額"));
     host.appendChild(kpiCell("kpi-overload", String(k.overloadedOwners || 0), "超載承辦人"));
