@@ -210,7 +210,8 @@
       },
       ticks: {
         color: THEME.muted,
-        font: { family: '"IBM Plex Mono", monospace', size: 11 }
+        font: { family: '"IBM Plex Mono", monospace', size: 11 },
+        precision: opts.precision
       },
       beginAtZero: opts.beginAtZero === true
     };
@@ -372,7 +373,7 @@
     var data = Array.isArray(deals.data) ? deals.data.map(Number) : [];
 
     if (labels.length === 0 || !hasData(data)) {
-      renderEmpty(canvas, "本月尚無成交資料");
+      renderEmpty(canvas, "本月尚無結案資料");
       return;
     }
 
@@ -380,7 +381,7 @@
     var goldColor = cssVar("--gold", THEME.gold);
 
     var datasets = [{
-      label: "累計成交金額",
+      label: "累計結案件數",
       data: data,
       borderColor: accentColor,           // 朱色主線
       backgroundColor: tint(THEME.cinnabar, 0.78), // 極淡朱填色，無光暈
@@ -442,7 +443,7 @@
         },
         scales: {
           x: axisStyle({ beginAtZero: false }),
-          y: axisStyle({ beginAtZero: true })
+          y: axisStyle({ beginAtZero: true, precision: 0 })
         }
       }
     });

@@ -138,7 +138,7 @@
     host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（2 營業時）"));
     host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🔴 逾期（1 工作天）"));
     host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "今日可結案"));
-    host.appendChild(kpiCell("kpi-money", fmtMoney(k.monthAmount), "本月成交金額"));
+    host.appendChild(kpiCell("kpi-money", String(k.monthClosed || 0), "本月結案件數"));
     host.appendChild(kpiCell("kpi-overload", String(k.overloadedOwners || 0), "超載承辦人"));
   }
 
@@ -479,8 +479,6 @@
       left.appendChild(el("span", "dl-name", clientLabel(rec.委託人)));
       if (rec.案號) left.appendChild(el("span", "dl-no", rec.案號));
       li.appendChild(left);
-      li.appendChild(el("span", "dl-amt",
-        (rec.成交金額 != null && !isNaN(rec.成交金額)) ? fmtMoney(rec.成交金額) : "待補"));
       var acts = el("span", "dl-actions");
       if (ctaKind === "close") acts.appendChild(ctaButton("結案", "close", rec.id, "cta-ok", false, TIP_CLOSE));
       else if (ctaKind === "amount") acts.appendChild(ctaButton("補金額", "amount", rec.id, "cta-accent"));
@@ -497,30 +495,53 @@
     return box;
   }
 
+  /* 結案分組清單：{label,count}[] → 「名稱 … N 件」行（最多 cap 條，其餘摺疊為「其他 M 件」） */
+  function closedList(title, rows, cls, emptyText, cap) {
+    var box = el("div", "deal-sub " + cls);
+    box.appendChild(el("h4", null, title));
+    if (!rows || !rows.length) {
+      box.appendChild(el("p", "deal-empty", emptyText));
+      return box;
+    }
+    cap = cap || 6;
+    var ul = el("ul");
+    rows.slice(0, cap).forEach(function (r) {
+      var li = el("li", "dl-row");
+      li.appendChild(el("span", "dl-left", r.label));
+      li.appendChild(el("span", "dl-count", (r.count || 0) + " 件"));
+      ul.appendChild(li);
+    });
+    var rest = rows.slice(cap);
+    if (rest.length) {
+      var more = rest.reduce(function (s, r) { return s + (r.count || 0); }, 0);
+      var li2 = el("li", "dl-row dl-overflow");
+      li2.appendChild(el("span", "dl-left", "其他"));
+      li2.appendChild(el("span", "dl-count", more + " 件"));
+      ul.appendChild(li2);
+    }
+    box.appendChild(ul);
+    return box;
+  }
+
   function renderDealTrack(state) {
     var host = $("deal-track"); if (!host) return;
     clear(host);
-    var d = state.deal || { monthAmount: 0, target: null, closable: [], pendingAmount: [] };
+    var d = state.deal || { monthClosedCount: 0, byType: [], byOwner: [], honestCount: 0, honestAmount: 0, closable: [] };
 
-    host.appendChild(el("h3", null, "本月成交進度"));
+    host.appendChild(el("h3", null, "本月結案進度"));
 
-    var amt = el("div", "deal-amount", fmtMoney(d.monthAmount || 0));
-    host.appendChild(amt);
-    host.appendChild(el("div", "deal-amount-label", "本月累計成交"));
+    host.appendChild(el("div", "deal-amount", String(d.monthClosedCount || 0)));
+    host.appendChild(el("div", "deal-amount-label",
+      (d.monthClosedCount > 0) ? "本月已結案件數" : "本月尚無結案記錄"));
 
-    if (d.target != null && d.target > 0) {
-      var pct = Math.max(0, Math.min(100, Math.round((d.monthAmount || 0) / d.target * 100)));
-      host.appendChild(el("div", "deal-target", "目標 " + fmtMoney(d.target) + "　達成 " + pct + "%"));
-      var bar = el("div", "deal-bar");
-      var fill = el("span"); fill.style.width = pct + "%";
-      bar.appendChild(fill);
-      host.appendChild(bar);
-    } else {
-      host.appendChild(el("div", "deal-target", "未設定本月目標。"));
+    if (d.honestCount > 0) {
+      host.appendChild(el("div", "deal-target",
+        "其中 " + d.honestCount + " 件已登金額，合計 " + fmtMoney(d.honestAmount)));
     }
 
-    host.appendChild(dealList("可結案", d.closable, "closable", "無可結案案件。", "close"));
-    host.appendChild(dealList("待補金額", d.pendingAmount, "pending", "金額皆已登錄。", "amount"));
+    host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));
+    host.appendChild(closedList("各承辦人結案件數", d.byOwner, "by-owner", "本月暫無結案案件", 5));
+    host.appendChild(dealList("可推進結案", d.closable, "closable", "目前無人工接管中案件", "close"));
   }
 
   /* =============================================================================

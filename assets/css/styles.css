@@ -289,6 +289,9 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 .dl-row { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .dl-left { flex:1; min-width:0; }
 .dl-amt { font-family:var(--fm); font-weight:600; }
+.dl-count { font-family:var(--fm); font-weight:600; white-space:nowrap; color:var(--ink); }
+.dl-overflow { opacity:.62; }
+.dl-overflow .dl-left, .dl-overflow .dl-count { font-weight:400; }
 .dl-actions { display:inline-flex; gap:6px; align-items:center; }
 .dl-actions .cta { padding:3px 9px; font-size:12px; }
 .cta-row.kind-close   { border-left:6px solid var(--ok); }

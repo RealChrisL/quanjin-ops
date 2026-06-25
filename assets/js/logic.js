@@ -271,36 +271,27 @@
     var overdueRows = queue.filter(function (q) { return q.level === "overdue"; }); // 🟠 逾期
     var overdueCount = overdueRows.length;
 
-    /* ---- deal：可結案 / 待補金額 ---- */
-    // 啟發式（closable）：狀態===人工接管中 的案件 = 人已接手、下一步即送件結案。
+    /* ---- deal：本月結案吞吐量（不再衡量金額——事務所結案多半不登成交金額）---- */
+    // 可結案（actionable）：狀態===人工接管中 = 人已接手、下一步即送件結案。
     var closable = active.filter(function (r) { return isHuman(r); });
-    // 待補金額：已完成、但成交金額為空或 0（結案了卻沒登金額 → 須補登）。
-    var pendingAmount = recs.filter(function (r) {
-      if (!isDone(r)) return false;
-      var amt = toNumber(r.成交金額);
-      return amt == null || amt === 0;
-    });
-
-    /* ---- 本月成交金額（monthAmount）----
-     * 啟發式：優先採「結案日期落在當月」者之 成交金額加總；
-     *         若該筆有結案日期但不在當月 → 不計（屬其他月）。
-     *         對「無結案日期、但已完成且成交金額>0」的歷史/補登資料，
-     *         退而求其次也計入本月（避免漏算已成交卻缺日期的案）。
-     *         金額一律經 toNumber 防呆，非數字以 0 計。
-     */
-    var monthAmount = 0;
-    for (var m = 0; m < recs.length; m++) {
-      var r2 = recs[m];
-      var amt2 = toNumber(r2.成交金額);
-      if (amt2 == null || amt2 <= 0) continue;
-      var closeD = toDate(r2.結案日期);
-      if (closeD) {
-        if (inCurrentMonth(closeD, now)) monthAmount += amt2;
-      } else if (isDone(r2)) {
-        // 已完成但缺結案日期 → 視為本月補登
-        monthAmount += amt2;
-      }
+    // 本月結案集：已完成 + 結案日期落在當月 → 統計件數／案型／承辦人／已登金額。
+    var monthClosedCount = 0, honestCount = 0, honestAmount = 0;
+    var closeTypeMap = {}, closeOwnerMap = {};
+    for (var mi = 0; mi < recs.length; mi++) {
+      var mr = recs[mi];
+      if (!isDone(mr)) continue;
+      var mcd = toDate(mr.結案日期);
+      if (!mcd || !inCurrentMonth(mcd, now)) continue;
+      monthClosedCount += 1;
+      var mty = toStr(mr.案件類型) || "未分類";
+      closeTypeMap[mty] = (closeTypeMap[mty] || 0) + 1;
+      var mow = (typeof QJ !== "undefined" && QJ.ownerName ? QJ.ownerName(toStr(mr.承辦人)) : toStr(mr.承辦人)) || "未指派";
+      closeOwnerMap[mow] = (closeOwnerMap[mow] || 0) + 1;
+      var mamt = toNumber(mr.成交金額);
+      if (mamt != null && mamt > 0) { honestCount += 1; honestAmount += mamt; }
     }
+    var byType = Object.keys(closeTypeMap).map(function (k) { return { label: k, count: closeTypeMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
+    var byOwner = Object.keys(closeOwnerMap).map(function (k) { return { label: k, count: closeOwnerMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
 
     /* ---- team：依承辦人分組 ---- */
     // 空承辦人 → 歸「未指派」。avgRespDays 誠實設 null（無回應歷史可算）。
@@ -354,13 +345,13 @@
 
     /* ---- kpis ---- */
     // closableToday：今天「可推進結案」的件數 = 待補金額 + 可結案候選。
-    var closableToday = closable.length; // 可結案＝人工接管中（待補金額另計，見 deal.pendingAmount）
+    var closableToday = closable.length; // 可結案＝人工接管中
     var kpis = {
       pending: pendingCount,                   // 🔴 待回（≥2 營業時未回）
       overdueRisk: overdueCount,               // 🟠 逾期（≥1 工作天未互動/結案）
       awaiting: active.length,                 // 待處理（非已完成）總數
       closableToday: closableToday,            // 今日可結案推進件數
-      monthAmount: monthAmount,                // 本月成交金額
+      monthClosed: monthClosedCount,           // 本月結案件數
       overloadedOwners: overloadedOwners,      // 過載承辦人數
     };
 
@@ -379,12 +370,6 @@
       actions.push({
         id: q.rec.id, kind: "overdue", rec: q.rec, waitLabel: q.waitLabel,
         label: "逾期跟進：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitLabel + "未互動）",
-      });
-    });
-    pendingAmount.forEach(function (r) {
-      actions.push({
-        id: r.id, kind: "amount", rec: r,
-        label: "補登成交金額：" + (toStr(r.委託人) || "（未具名）"),
       });
     });
     closable.forEach(function (r) {
@@ -406,7 +391,6 @@
       pending: pendingCount,
       overdue: overdueCount,
       closable: closableToday,
-      pendingAmount: pendingAmount.length,
       active: active.length,
     });
 
@@ -419,10 +403,12 @@
       queue: queue,
       team: team,
       deal: {
-        monthAmount: monthAmount,
-        target: monthlyTarget,
+        monthClosedCount: monthClosedCount,
+        byType: byType,
+        byOwner: byOwner,
+        honestCount: honestCount,
+        honestAmount: honestAmount,
         closable: closable,
-        pendingAmount: pendingAmount,
       },
       actions: actions,
       slices: slices,
@@ -441,12 +427,11 @@
     if (c.overdue > 0) parts.push("🔴 " + c.overdue + " 件逾期（逾 1 工作天未互動）");
     if ((c.pending || 0) === 0 && (c.overdue || 0) === 0) parts.push("目前無待回/逾期案件");
     if (c.closable > 0) parts.push("有 " + c.closable + " 件可推進結案");
-    if (c.pendingAmount > 0) parts.push("另有 " + c.pendingAmount + " 件已結案待補登成交金額");
     var head = parts.join("，") + "。";
     if (c.pending > 0 || c.overdue > 0) {
       head += "請積極跟進——回覆客戶，或處理結案。";
-    } else if (c.closable > 0 || c.pendingAmount > 0) {
-      head += "建議處理結案與補登金額。";
+    } else if (c.closable > 0) {
+      head += "建議推進可結案的案件。";
     } else {
       head += "案況穩定，持續跟進即可。";
     }
@@ -483,17 +468,16 @@
       typeSeries.push({ type: tty, created: ct ? ct.getTime() : null });
     }
 
-    // ---- deals：本月逐日累計成交金額 ----
-    // 收集本月內、成交金額>0 且有結案日期者，依日期排序後累計。
-    var dayMap = {};   // day(1..31) → 當日金額加總
+    // ---- deals：本月逐日累計結案件數 ----
+    // 收集本月內、已完成且有結案日期者，依日期排序後累計件數。
+    var dayMap = {};   // day(1..31) → 當日結案件數
     for (var d = 0; d < recs.length; d++) {
       var rr = recs[d];
-      var amt = toNumber(rr.成交金額);
-      if (amt == null || amt <= 0) continue;
+      if (!isDone(rr)) continue;
       var cd = toDate(rr.結案日期);
       if (!cd || !inCurrentMonth(cd, now)) continue;
       var day = cd.getDate();
-      dayMap[day] = (dayMap[day] || 0) + amt;
+      dayMap[day] = (dayMap[day] || 0) + 1;
     }
     var labels = [];
     var data = [];
@@ -513,7 +497,7 @@
       deals: {
         labels: labels,
         data: data,
-        target: (monthlyTarget == null) ? null : monthlyTarget,
+        target: null,
       },
     };
   }
