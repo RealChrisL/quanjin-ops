@@ -120,7 +120,7 @@
 
             '<button id="btn-save-creds" type="button">啟用戰情室</button>' +
 
-            '<p class="setup-note">憑證僅存於這台瀏覽器，可隨時清除。寫入代理密鑰用於「改派」即時通知同仁；留空仍可查看與結案。</p>' +
+            '<p class="setup-note">寫入代理密鑰用於「改派」即時通知同仁；留空仍可查看與結案。</p>' +
           '</div>' +
         '</div>' +
       '</div>';
@@ -191,15 +191,6 @@
       if (hit) {
         ev.preventDefault();
         clear();
-        return;
-      }
-      // 「連線設定」：重開 Setup Gate（欄位預填，不清憑證）→ 可補填寫入代理
-      var settingsHit = (t.id === "open-settings") ||
-                (typeof t.closest === "function" && t.closest("#open-settings"));
-      if (settingsHit) {
-        ev.preventDefault();
-        showGate();
-        renderSetupGate();
       }
     });
   }
