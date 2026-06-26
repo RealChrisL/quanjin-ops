@@ -328,6 +328,19 @@
     return notDone;
   }
 
+  /* 排除「同仁＝委託人」的紀錄：客戶身分欄位（LINE用戶ID）為內部同仁 uid 時，
+   * 這是同仁自己與 OA 互動產生的紀錄，不該當成待辦客戶顯示。
+   * 只看客戶身分（LINE用戶ID），不看承辦人——委派團隊成員＝同仁 uid 是正常的。 */
+  function _isStaffOwnRecord(raw) {
+    var f = (raw && raw.fields) || {};
+    var byUid = QJ.TEAM_BY_UID || {};
+    var v = f["LINE用戶ID"];
+    var uid = "";
+    if (typeof v === "string") { uid = v.trim(); }
+    else if (Array.isArray(v) && v.length) { uid = String(v[0]).trim(); }
+    return !!(uid && byUid[uid]);
+  }
+
   function fetchRecords() {
     var creds = QJ.auth.getCreds();
     var fieldMap = QJ.airtable.fieldMap || loadFieldMapFromLS();
@@ -357,6 +370,7 @@
         return get(url, creds.pat).then(function (data) {
           var recs = (data && data.records) || [];
           for (var i = 0; i < recs.length; i++) {
+            if (_isStaffOwnRecord(recs[i])) { continue; } // 同仁自身紀錄不列入客戶清單
             all.push(_normalize(recs[i], fmap));
           }
           if (data && data.offset) {
