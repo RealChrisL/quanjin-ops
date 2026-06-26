@@ -316,16 +316,18 @@
     var statusField = fieldMap ? fieldMap["狀態"] : null;
     if (!statusField) { return null; } // 狀態未解析 → 不過濾，全抓
 
-    var doneVal = QJ.STATUS.DONE; // "已完成"
+    var open = QJ.STATUS.OPEN, human = QJ.STATUS.HUMAN, doneVal = QJ.STATUS.DONE;
     var closedField = fieldMap ? fieldMap["結案日期"] : null;
 
-    // 狀態≠已完成 一律保留；若有結案日期欄位，近 30 天結案也保留。
-    var notDone = "NOT({" + statusField + "}='" + doneVal + "')";
+    // 允許清單：只取三態中的兩個「進行態」（跟進中／人工接管中）。空白／未知／舊狀態值
+    // 不視為進行中（對齊 bot 三態模型），避免灌水佇列與 KPI。有結案日期欄位時，近 30 天
+    // 的「已完成」也保留，供本月結案統計。
+    var active = "OR({" + statusField + "}='" + open + "',{" + statusField + "}='" + human + "')";
     if (closedField) {
-      var recent = "IS_AFTER({" + closedField + "}, DATEADD(TODAY(),-30,'days'))";
-      return "OR(" + notDone + ", " + recent + ")";
+      var recent = "AND({" + statusField + "}='" + doneVal + "',IS_AFTER({" + closedField + "}, DATEADD(TODAY(),-30,'days')))";
+      return "OR(" + active + "," + recent + ")";
     }
-    return notDone;
+    return active;
   }
 
   /* 排除「同仁＝委託人」的紀錄：客戶身分欄位（LINE用戶ID）為內部同仁 uid 時，
