@@ -274,13 +274,10 @@
       var v = toStr(rawFields[cands[i]]);
       if (v) { return v; }
     }
-    // 後備：沒有姓名時，掃出 LINE userId（U+長 hex）讓 CEO 至少能辨識，而非一律「未具名」。
-    for (var k in rawFields) {
-      if (Object.prototype.hasOwnProperty.call(rawFields, k)) {
-        var s = toStr(rawFields[k]).trim();
-        if (/^U[0-9a-f]{16,}$/i.test(s)) { return s; }
-      }
-    }
+    // 後備：沒有姓名時，只用「客戶身分」欄位（LINE用戶ID）的 uid 顯示——不掃所有欄位，
+    // 避免誤抓承辦人（委派團隊成員）的 uid 當成委託人。
+    var cuid = toStr(rawFields["LINE用戶ID"]).trim();
+    if (/^U[0-9a-f]{16,}$/i.test(cuid)) { return cuid; }
     return "";
   }
 
@@ -346,6 +343,13 @@
     if (uid && byUid[uid]) { return true; }   // 客戶身分＝同仁 webhook uid
     var oaid = pick(f["OA聊天ID"]);
     if (oaid && byOa[oaid]) { return true; }   // OA 對話建立的同仁本人紀錄（無 LINE用戶ID）
+    // 後備（防漏）：無客戶 uid 的紀錄，姓名/顯示名恰為同仁名 → 視為同仁本人（OA 對話建立、
+    // 其 OA聊天ID 尚未登錄）。僅在「無 LINE用戶ID」時生效——真實客戶必由 LINE 進線帶 uid。
+    if (!uid) {
+      var names = QJ.STAFF_NAMES || {};
+      var nm = pick(f["姓名"]) || pick(f["LINE顯示名稱"]);
+      if (nm && names[nm]) { return true; }
+    }
     return false;
   }
 

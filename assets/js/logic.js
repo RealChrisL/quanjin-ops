@@ -263,6 +263,8 @@
       var eh = elapsedHours(interactionBase(rec), now);
       var bh = businessHoursBetween(interactionBase(rec), now, settings.officeHours);
       var lv = levelOf(eh, bh, settings);
+      // 人工接管中：團隊已接手，「待回」（客戶等智能助手回覆）不適用——只在真正久未動時才標逾期。
+      if (lv === "pending" && isHuman(rec)) lv = "ok";
       queue.push({
         rec: rec,
         waitDays: computeWaitDays(rec, now),

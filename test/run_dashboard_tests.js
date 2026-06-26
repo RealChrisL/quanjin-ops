@@ -162,12 +162,14 @@ function test_isStaffOwnRecord() {
         f({ fields: { "LINE用戶ID": [HL_UID] } }) === true);
   check("ISR ordinary client uid → false",
         f({ fields: { "LINE用戶ID": CLIENT_UID } }) === false);
-  // DOCUMENTED LEAK: a staff person who appears ONLY by name (no staff uid /
-  // OA id on the record) is NOT excluded — _isStaffOwnRecord checks id fields
-  // ONLY, never 委託人/姓名. Such a record leaks into the client queue. Pinned
-  // so the gap is visible; a future name-based guard would flip this to true.
-  check("ISR name-only-staff LEAK is NOT excluded (documented: id-only check) → false",
-        f({ fields: { "姓名": "徐鈞澤", "委託人": "徐鈞澤", "LINE用戶ID": CLIENT_UID } }) === false);
+  // FIXED (name-based backstop): a staff person appearing ONLY by name with NO
+  // client uid / OA id is now caught by the name guard (QJ.STAFF_NAMES). A record
+  // carrying a real client LINE用戶ID is NOT caught even if named like staff (it
+  // came in via LINE → it's a client).
+  check("ISR name-only-staff (roster name, no ids) → true (name-guard)",
+        f({ fields: { "姓名": "徐鈞澤" } }) === true);
+  check("ISR staff-name but real client uid → false (has client uid = real client)",
+        f({ fields: { "姓名": "徐鈞澤", "LINE用戶ID": CLIENT_UID } }) === false);
 }
 
 /* ===========================================================================
@@ -204,8 +206,10 @@ function test_helpers() {
   check("toDate ISO string → Date", t.toDate("2026-06-20") instanceof Date);
   check("toDate empty/null → null", t.toDate("") === null && t.toDate(null) === null);
   check("coalesceName 姓名 candidate → name", t.coalesceName({ "姓名": "王先生" }) === "王先生");
-  check("coalesceName fallback to LINE uid when no name",
-        t.coalesceName({ "randomField": CLIENT_UID }) === CLIENT_UID);
+  check("coalesceName fallback uses LINE用戶ID only (the client field)",
+        t.coalesceName({ "LINE用戶ID": CLIENT_UID }) === CLIENT_UID);
+  check("coalesceName does NOT surface a uid from a non-client field (M6 fix)",
+        t.coalesceName({ "委派團隊成員": CLIENT_UID }) === "");
 
   var fieldMap = {
     委託人: "姓名", 狀態: "進度狀態", 成交金額: "成交金額", 結案日期: "結案日期",

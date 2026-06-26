@@ -166,7 +166,7 @@
     var tk = (stats && stats.takeovers) || {}, rp = (stats && stats.replies) || {};
     if (!stats || stats.ok === false || (tk.total == null && rp.total == null)) { host.hidden = true; return; }
     clear(host); host.hidden = false;
-    host.appendChild(el("div", "ab-head", "智能助手全天守線 · 近 " + (stats.window_days || 30) + " 天"));
+    host.appendChild(el("div", "ab-head", "智能助手全天守線 · 近 " + (stats.window_days || 30) + " 天（自主處理量，非成交數）"));
     var row = el("div", "ab-stats");
     function stat(num, label, sub) {
       var s = el("span", "ab-stat");
@@ -179,7 +179,12 @@
     if (rp.total != null) row.appendChild(stat(rp.total, "次自動回覆客戶", (rp.after_hours || 0) + " 次在非營業時間"));
     if (rp.blocked) row.appendChild(stat(rp.blocked, "次攔截可疑回覆", "防止亂報價／亂答"));
     host.appendChild(row);
-    host.appendChild(el("div", "ab-roi", "估算守住可挽回名單 NT$38 萬+（保守估算；待成交金額開始登記後轉為實測）"));
+    // 一旦開始登記真實成交金額，改顯示實測值，避免與「本月結案進度」面板的真實數字矛盾。
+    if (R._honestAmount > 0) {
+      host.appendChild(el("div", "ab-roi", "近 30 天已登記成交 " + (R._honestCount || 0) + " 件，合計 " + fmtMoney(R._honestAmount)));
+    } else {
+      host.appendChild(el("div", "ab-roi", "估算守住可挽回名單 NT$38 萬+（保守估算；待成交金額開始登記後轉為實測）"));
+    }
   };
 
   /* =============================================================================
@@ -560,6 +565,7 @@
     var host = $("deal-track"); if (!host) return;
     clear(host);
     var d = state.deal || { monthClosedCount: 0, byType: [], byOwner: [], honestCount: 0, honestAmount: 0, closable: [] };
+    R._honestAmount = d.honestAmount || 0; R._honestCount = d.honestCount || 0; // 供守線橫幅判斷是否已有實測成交
 
     host.appendChild(el("h3", null, "本月結案進度"));
 

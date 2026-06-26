@@ -95,6 +95,10 @@ QJ.STAFF_OA_IDS = {
   "U2050b9d34a2d8c0400899b7af66d1f6d": "徐鈞澤(HSU)",
   "Uf6fdd9f3512c740cb037a1f5b45d7a72": "黃玲智"
 };
+/* 同仁姓名集合（含別名）——name-only 漏網防護（_isStaffOwnRecord 後備，僅在無 LINE用戶ID 時生效）。 */
+QJ.STAFF_NAMES = {};
+QJ.TEAM_ROSTER.forEach(function (m) { QJ.STAFF_NAMES[m.name] = true; });
+["HSU", "黃奕溱"].forEach(function (n) { QJ.STAFF_NAMES[n] = true; });
 // 承辦人顯示名：「名字 (uid)」→名字、純 uid→名字、其餘原樣。全站唯一 owner→name 解析來源。
 QJ.ownerName = function (raw) {
   var s = String(raw == null ? "" : raw).trim();
