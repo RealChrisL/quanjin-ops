@@ -496,4 +496,7 @@
     reconcileLastInteraction: reconcileLastInteraction
   };
 
+  // 測試專用匯出（純函式；零行為變更）。standalone node harness 由此取得私有純函式。
+  QJ.airtable._test = { buildFilterFormula: buildFilterFormula, _isStaffOwnRecord: _isStaffOwnRecord, _normalize: _normalize, coalesceName: coalesceName, toNumber: toNumber, toDate: toDate };
+
 })();
