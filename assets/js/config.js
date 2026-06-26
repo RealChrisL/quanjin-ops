@@ -86,6 +86,15 @@ QJ.TEAM_ROSTER = [
 QJ.TEAM_BY_UID = {};
 QJ.TEAM_ROSTER.forEach(function (m) { QJ.TEAM_BY_UID[m.uid] = m.name; });
 QJ.delegateeValue = function (m) { return m.name + " (" + m.uid + ")"; }; // bot 委派團隊成員格式
+
+/* 同仁的 OA Manager 聊天 ID（chat.line.biz id ≠ webhook uid）。OA 對話建立的同仁
+ * 本人紀錄沒有 LINE用戶ID，只能靠 OA聊天ID 認出——這些不該列入待辦客戶清單。
+ * 若日後有新同仁出現在客戶清單，把他的 OA聊天ID 加在這裡。 */
+QJ.STAFF_OA_IDS = {
+  "U3131bc24f96f966269acce66cc704f68": "奕溱",
+  "U2050b9d34a2d8c0400899b7af66d1f6d": "徐鈞澤(HSU)",
+  "Uf6fdd9f3512c740cb037a1f5b45d7a72": "黃玲智"
+};
 // 承辦人顯示名：「名字 (uid)」→名字、純 uid→名字、其餘原樣。全站唯一 owner→name 解析來源。
 QJ.ownerName = function (raw) {
   var s = String(raw == null ? "" : raw).trim();

@@ -334,11 +334,17 @@
   function _isStaffOwnRecord(raw) {
     var f = (raw && raw.fields) || {};
     var byUid = QJ.TEAM_BY_UID || {};
-    var v = f["LINE用戶ID"];
-    var uid = "";
-    if (typeof v === "string") { uid = v.trim(); }
-    else if (Array.isArray(v) && v.length) { uid = String(v[0]).trim(); }
-    return !!(uid && byUid[uid]);
+    var byOa = QJ.STAFF_OA_IDS || {};
+    function pick(val) {
+      if (typeof val === "string") { return val.trim(); }
+      if (Array.isArray(val) && val.length) { return String(val[0]).trim(); }
+      return "";
+    }
+    var uid = pick(f["LINE用戶ID"]);
+    if (uid && byUid[uid]) { return true; }   // 客戶身分＝同仁 webhook uid
+    var oaid = pick(f["OA聊天ID"]);
+    if (oaid && byOa[oaid]) { return true; }   // OA 對話建立的同仁本人紀錄（無 LINE用戶ID）
+    return false;
   }
 
   function fetchRecords() {
