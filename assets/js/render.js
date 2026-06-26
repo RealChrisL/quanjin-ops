@@ -154,7 +154,7 @@
     var k = state.kpis || {};
     host.appendChild(kpiCell("kpi-pending", String(k.pending || 0), "🟠 待回（上班時間 4 小時）"));
     host.appendChild(kpiCell("kpi-risk", String(k.overdueRisk || 0), "🔴 逾期（1 天）"));
-    host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "人工接管中"));
+    host.appendChild(kpiCell("kpi-close", String(k.closableToday || 0), "可推進結案（人工接管中）"));
     host.appendChild(kpiCell("kpi-money", String(k.monthClosed || 0), "本月結案件數"));
     host.appendChild(kpiCell("kpi-overload", String(k.overloadedOwners || 0), "超載承辦人"));
   }
@@ -386,7 +386,7 @@
   function passesFilter(item) {
     var f = R._filters, rec = item.rec || {};
     if (f.type && rec.案件類型 !== f.type) return false;
-    if (f.owner && (rec.承辦人 || "") !== f.owner) return false;
+    if (f.owner && displayOwner(rec.承辦人) !== f.owner) return false;
     if (f.status && rec.狀態 !== f.status) return false;
     return true;
   }

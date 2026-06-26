@@ -65,6 +65,12 @@
     return String(v).trim();
   }
 
+  // 承辦人 raw 值 → 解析後顯示名（uid→名字、「名字 (uid)」→名字）。同一人不同寫法
+  // 合併為一條，避免團隊面板/下拉重複、過載門檻被稀釋。
+  function ownerNameOf(raw) {
+    return (typeof QJ !== "undefined" && QJ.ownerName) ? QJ.ownerName(toStr(raw)) : toStr(raw);
+  }
+
   /* ---------------------------------------------------------------------------
    * reconcileLastInteraction(rec)
    * 「上次互動時間取多欄最新值」正確性需求。
@@ -227,11 +233,12 @@
    *   其他               → 已聯繫
    * ------------------------------------------------------------------------- */
   function nextCTAOf(rec, level) {
-    if (level === "pending" || level === "overdue") {
-      return { type: "contacted", label: "已聯繫" };
-    }
+    // 人工接管中：人已接手，下一步固定是結案——即使逾期也不該是「已聯繫」。
     if (isHuman(rec)) {
       return { type: "close", label: "結案" };
+    }
+    if (level === "pending" || level === "overdue") {
+      return { type: "contacted", label: "已聯繫" };
     }
     return { type: "contacted", label: "已聯繫" };
   }
@@ -300,7 +307,7 @@
     var teamMap = {};   // owner → {active, overdue}
     for (var t = 0; t < queue.length; t++) {
       var q = queue[t];
-      var owner = toStr(q.rec.承辦人) || "未指派";
+      var owner = ownerNameOf(q.rec.承辦人) || "未指派";
       if (!teamMap[owner]) teamMap[owner] = { active: 0, overdue: 0 };
       teamMap[owner].active += 1;
       if (q.level === "overdue" || q.level === "pending") teamMap[owner].overdue += 1; // 待跟進＝待回+逾期
@@ -309,11 +316,13 @@
 
     // 過載判斷（overload）：active ≥ max(5, 1.5 × 全體承辦人平均 active)。
     // 平均以「有案在身的承辦人」為母體（未指派也算一組）。
+    // 過載門檻母體＝實際承辦人（排除「未指派」——它不是人，不該稀釋平均或被判過載）。
     var meanActive = 0;
-    if (ownerNames.length > 0) {
+    var realOwners = ownerNames.filter(function (o) { return o !== "未指派"; });
+    if (realOwners.length > 0) {
       var sumActive = 0;
-      for (var s = 0; s < ownerNames.length; s++) sumActive += teamMap[ownerNames[s]].active;
-      meanActive = sumActive / ownerNames.length;
+      for (var s = 0; s < realOwners.length; s++) sumActive += teamMap[realOwners[s]].active;
+      meanActive = sumActive / realOwners.length;
     }
     var overloadThreshold = Math.max(5, 1.5 * meanActive);
 
@@ -323,14 +332,15 @@
       var rr2 = recs[rp];
       var inq = toDate(rr2.首次進線時間), rsp = toDate(rr2.首次回應時間);
       if (!inq || !rsp || rsp.getTime() < inq.getTime()) continue;
-      var ow2 = toStr(rr2.承辦人) || "未指派";
+      var ow2 = ownerNameOf(rr2.承辦人) || "未指派";
       if (!respMap[ow2]) respMap[ow2] = { sum: 0, n: 0 };
       respMap[ow2].sum += (rsp.getTime() - inq.getTime()) / 3600000;
       respMap[ow2].n += 1;
     }
     var team = ownerNames.map(function (owner) {
       var info = teamMap[owner];
-      var flag = (info.active >= overloadThreshold) ? "overload" : "ok";
+      // 「未指派」不是人，永遠不標過載——那是「待分配」，不是「有人被壓垮」。
+      var flag = (owner !== "未指派" && info.active >= overloadThreshold) ? "overload" : "ok";
       var rm = respMap[owner];
       return {
         owner: owner,
@@ -362,19 +372,24 @@
      */
     // 積極跟進優先：先 待回 → 逾期 → 補金額 → 結案
     var actions = [];
+    var actionSeen = {};   // 同一筆案件只列一次（避免逾期人工接管中案件同時出現「逾期跟進」+「結案」兩列）
     pendingRows.forEach(function (q) {
+      actionSeen[q.rec.id] = true;
       actions.push({
         id: q.rec.id, kind: "pending", rec: q.rec, waitLabel: q.waitLabel,
         label: "待回覆：" + (toStr(q.rec.委託人) || "（未具名）") + "（客戶已等 " + q.waitLabel + "）",
       });
     });
     overdueRows.forEach(function (q) {
+      actionSeen[q.rec.id] = true;
       actions.push({
         id: q.rec.id, kind: "overdue", rec: q.rec, waitLabel: q.waitLabel,
         label: "逾期跟進：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitLabel + "未互動）",
       });
     });
     closable.forEach(function (r) {
+      if (actionSeen[r.id]) return;   // 已列為 待回/逾期 → 不重複列「結案」
+      actionSeen[r.id] = true;
       actions.push({
         id: r.id, kind: "close", rec: r,
         label: "結案：" + (toStr(r.委託人) || "（未具名）"),
@@ -384,8 +399,11 @@
     /* ---- slices：去重 + 排序 + 去空 ---- */
     var slices = {
       types: distinctSorted(recs.map(function (r) { return toStr(r.案件類型); })),
-      owners: distinctSorted(recs.map(function (r) { return toStr(r.承辦人); })),
-      statuses: distinctSorted(recs.map(function (r) { return toStr(r.狀態); })),
+      // 承辦人下拉以「解析後的名字」去重，避免同一人（uid / 名字 (uid)）出現兩個外觀相同的選項。
+      owners: distinctSorted(recs.map(function (r) { return ownerNameOf(r.承辦人); })),
+      // 已完成案件不在進行中佇列，故狀態下拉排除「已完成」（選了永遠空白且訊息誤導）。
+      statuses: distinctSorted(recs.map(function (r) { return toStr(r.狀態); }))
+                  .filter(function (s) { return s !== QJ.STATUS.DONE; }),
     };
 
     /* ---- summary：單一份每日中文摘要（非早晚兩段）---- */
