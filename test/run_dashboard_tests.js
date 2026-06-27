@@ -231,12 +231,61 @@ function test_helpers() {
         norm.lastInteractionField === "最後互動時間", norm.lastInteractionField);
 }
 
+/* ===========================================================================
+ * TASK 2E — QJ.applyStaffRoster: backend /staff roster merge + hardcoded fallback
+ * Pins the drift fix — a colleague added ONLY in the bot's config.json (surfaced
+ * via /staff) is recognized by _isStaffOwnRecord without editing config.js; the
+ * hardcoded roster survives a proxy-down (null) payload (graceful degradation).
+ * ======================================================================== */
+function test_staffLoader() {
+  console.log("TASK 2E — applyStaffRoster (backend roster + hardcoded fallback)");
+  var isr = QJ.airtable._test._isStaffOwnRecord;
+  var NEW_UID = "Udeadbeefdeadbeefdeadbeefdeadbeef"; // valid uid-shape, NOT in hardcoded roster
+  var NEW_OA = "Ufeedfacefeedfacefeedfacefeedface";  // NOT in hardcoded STAFF_OA_IDS
+
+  // pre-apply: a backend-only staff member is not yet recognized (the drift bug)
+  check("SL pre-apply backend-only uid NOT yet staff",
+        isr({ fields: { "LINE用戶ID": NEW_UID } }) === false);
+  check("SL pre-apply backend-only OA id NOT yet staff",
+        isr({ fields: { "OA聊天ID": NEW_OA } }) === false);
+
+  // FALLBACK: null / non-ok payload → no-op, hardcoded roster intact
+  check("SL applyStaffRoster(null) → false (no-op)", QJ.applyStaffRoster(null) === false);
+  check("SL applyStaffRoster({ok:false}) → false (no-op)", QJ.applyStaffRoster({ ok: false }) === false);
+  check("SL fallback preserves hardcoded uid (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
+  check("SL fallback preserves hardcoded OA id (奕溱)", QJ.STAFF_OA_IDS[STAFF_OA] === "奕溱");
+
+  // SUCCESS: merge backend roster onto the hardcoded values (Object.assign union)
+  var payload = { ok: true, staff_oa_chat_ids: {}, staff_uids: {},
+                  staff_names: ["鍾文芳", "傅子璇", "徐鈞澤", "HSU"] };
+  payload.staff_oa_chat_ids[NEW_OA] = "傅子璇";
+  payload.staff_uids[NEW_UID] = "鍾文芳";
+  check("SL applyStaffRoster(ok payload) → true", QJ.applyStaffRoster(payload) === true);
+  check("SL STAFF_OA_IDS gains backend OA id", QJ.STAFF_OA_IDS[NEW_OA] === "傅子璇");
+  check("SL TEAM_BY_UID gains backend uid", QJ.TEAM_BY_UID[NEW_UID] === "鍾文芳");
+  check("SL STAFF_NAMES gains backend name (鍾文芳)", QJ.STAFF_NAMES["鍾文芳"] === true);
+  check("SL merge keeps hardcoded uid (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
+  check("SL merge keeps hardcoded OA id (奕溱)", QJ.STAFF_OA_IDS[STAFF_OA] === "奕溱");
+
+  // THE DRIFT FIX: a backend-only staff member is now filtered out of the client list
+  check("SL post-apply backend uid → _isStaffOwnRecord true",
+        isr({ fields: { "LINE用戶ID": NEW_UID } }) === true);
+  check("SL post-apply backend OA id → _isStaffOwnRecord true",
+        isr({ fields: { "OA聊天ID": NEW_OA } }) === true);
+
+  // QJ.ownerName still works AND reflects the newly-added staff
+  check("SL ownerName(bare backend uid) → 鍾文芳", QJ.ownerName(NEW_UID) === "鍾文芳");
+  check("SL ownerName('名字 (uid)' backend form) → 鍾文芳",
+        QJ.ownerName("某人 (" + NEW_UID + ")") === "鍾文芳");
+}
+
 /* ---- run ---- */
 console.log("=== quanjin-ops dashboard test harness ===");
 test_analyze();
 test_isStaffOwnRecord();
 test_buildFilterFormula();
 test_helpers();
+test_staffLoader();
 console.log("");
 if (FAILS.length) {
   console.log("FAILED: " + FAILS.length + " — " + safe(FAILS));

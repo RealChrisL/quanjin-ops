@@ -485,6 +485,16 @@
       .catch(function () { return null; });
   }
 
+  /* ---- 同仁名冊：GET /staff（唯讀，內部同仁 id，無 PII，免授權如 /health）。
+   *      單一真實來源＝bot config.json；失敗回 null → app.js 沿用硬編後備名冊。 ---- */
+  function fetchStaff() {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/staff";
+    if (!url || url === "/staff") { return Promise.resolve(null); }
+    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
   /* ---- 開機時把先前的 fieldMap 載入記憶體（detectSchema 會覆寫）---- */
   QJ.airtable = {
     // 記憶體欄位對應（detectSchema 後填入；clear() 會清空）
@@ -495,6 +505,7 @@
     patchRecord: patchRecord,
     cta: cta,
     fetchStats: fetchStats,
+    fetchStaff: fetchStaff,
     _normalize: _normalize,
     // 對外曝露 reconcile（logic.js 合約也定義同名，但 raw→date 取最新邏輯落在此）
     reconcileLastInteraction: reconcileLastInteraction

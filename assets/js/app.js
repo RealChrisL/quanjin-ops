@@ -211,7 +211,17 @@
     document.addEventListener("visibilitychange", function () { if (!document.hidden && state.analysis && !document.querySelector(".inline-edit")) refresh(true); });
 
     setStatus("連線中…", false);
-    QJ.airtable.detectSchema().then(function () {
+    // 同仁名冊先就位：必須在「首次 fetchRecords→_isStaffOwnRecord」之前 await /staff，
+    // 否則首屏正規化會把同仁誤列為客戶。fetchStaff 永不 reject（失敗回 null），
+    // applyStaffRoster 失敗即 no-op（沿用硬編後備），所以這一步永遠會往下走。
+    var staffStep = QJ.airtable.fetchStaff
+      ? QJ.airtable.fetchStaff().then(function (roster) {
+          if (roster && QJ.applyStaffRoster) { QJ.applyStaffRoster(roster); }
+        })
+      : Promise.resolve();
+    staffStep.then(function () {
+      return QJ.airtable.detectSchema();
+    }).then(function () {
       return refresh(false);
     }).then(function () {
       startPolling();

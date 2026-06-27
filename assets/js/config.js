@@ -89,7 +89,11 @@ QJ.delegateeValue = function (m) { return m.name + " (" + m.uid + ")"; }; // bot
 
 /* 同仁的 OA Manager 聊天 ID（chat.line.biz id ≠ webhook uid）。OA 對話建立的同仁
  * 本人紀錄沒有 LINE用戶ID，只能靠 OA聊天ID 認出——這些不該列入待辦客戶清單。
- * 若日後有新同仁出現在客戶清單，把他的 OA聊天ID 加在這裡。 */
+ *
+ * ⚠️ 單一真實來源＝bot 的 config.json:staff_oa_chat_ids。開機時 app.js 會呼叫
+ * 代理 /staff 端點，把後端名冊「併入」下方硬編值（QJ.applyStaffRoster）。
+ * 新同仁只在 config.json 加一次即可（staff_oa_chat_ids／business_teams／roles_meta），
+ * 不要改本檔。下方硬編值僅作「代理離線時」的後備（graceful degradation）。 */
 QJ.STAFF_OA_IDS = {
   "U3131bc24f96f966269acce66cc704f68": "奕溱",
   "U2050b9d34a2d8c0400899b7af66d1f6d": "徐鈞澤(HSU)",
@@ -110,6 +114,31 @@ QJ.ownerName = function (raw) {
   if (byUid[s]) return byUid[s];
   if (uid) return s.replace(/\s*[\(（][^()（）]+[\)）]\s*$/, "").trim() || s;
   return s;
+};
+
+/* ---- 後端名冊載入（單一真實來源＝bot config.json，經代理 /staff 取得）----
+ * app.js 開機時 fetchStaff() → 本函式，把後端回來的同仁名冊「併入」硬編後備值
+ * （Object.assign 併集，不取代）：併集只會「多認出同仁」、永遠不會少認，符合
+ * 「同仁在 config.json 加一次就生效」的目標，且代理離線時硬編後備仍可運作。
+ * payload 為 null／ok!==true（代理離線或讀取失敗）→ no-op，沿用硬編後備。
+ * 回傳 true=已套用後端名冊，false=維持硬編後備。 */
+QJ.applyStaffRoster = function (payload) {
+  if (!payload || payload.ok !== true) { return false; }
+  try {
+    var oa = payload.staff_oa_chat_ids;
+    if (oa && typeof oa === "object") {
+      Object.keys(oa).forEach(function (k) { if (k) QJ.STAFF_OA_IDS[k] = oa[k]; });
+    }
+    var uids = payload.staff_uids;
+    if (uids && typeof uids === "object") {
+      Object.keys(uids).forEach(function (u) { if (u) QJ.TEAM_BY_UID[u] = uids[u]; }); // QJ.ownerName 即時受惠
+    }
+    var names = payload.staff_names;
+    if (Array.isArray(names)) {
+      names.forEach(function (n) { if (n) QJ.STAFF_NAMES[n] = true; });
+    }
+    return true;
+  } catch (e) { return false; }
 };
 
 /* ---- 案型估值（business_guide confirmed_price；未列者不顯示金額）---- */
