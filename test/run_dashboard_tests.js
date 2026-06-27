@@ -324,6 +324,9 @@ function test_dealOutcomeSplit() {
   check("DS 未成交(成交金額=0) → lostCount = 2", d.lostCount === 2, d.lostCount);
   check("DS 待補(blank) → pendingCount = 1", d.pendingCount === 1, d.pendingCount);
   check("DS 成交(>0) → honestCount = 1", d.honestCount === 1, d.honestCount);
+  // nudge feeds: per-close record lists (drive 「填結果」/「確認結果」 buttons)
+  check("DS lostRecs has the 2 未成交 records", d.lostRecs && d.lostRecs.length === 2, d.lostRecs && d.lostRecs.length);
+  check("DS pendingRecs has the 1 待補 record", d.pendingRecs && d.pendingRecs.length === 1, d.pendingRecs && d.pendingRecs.length);
 }
 
 /* ---- run ---- */

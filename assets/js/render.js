@@ -561,6 +561,48 @@
     return box;
   }
 
+  /* 「填結果」nudge：把未填結果／全未成交的結案列成可點清單，每筆按鈕直接開結果選擇器
+   * （openCloseOutcome，沿用既有強制二元）。框架＝「業績才算得進去」（公平感，非責備）。 */
+  function renderNudgeList(recs, ctaLabel, ctaStyle, host) {
+    if (!recs || !recs.length) return;
+    var ul = el("ul", "nudge-list");
+    recs.slice(0, 8).forEach(function (rec) {
+      var li = el("li", "nudge-row");
+      var nameStr = clientLabel(rec.委託人);
+      if (rec.案件類型) nameStr += "｜" + rec.案件類型;
+      li.appendChild(el("span", "nudge-name", nameStr));
+      li.appendChild(ctaButton(ctaLabel, "close", rec.id, ctaStyle));
+      ul.appendChild(li);
+    });
+    if (recs.length > 8) {
+      ul.appendChild(el("li", "nudge-more", "另有 " + (recs.length - 8) + " 件，可至 Airtable 補填"));
+    }
+    host.appendChild(ul);
+  }
+
+  function renderDealNudge(d, host) {
+    var allLost = d.monthClosedCount > 1 && d.honestCount === 0 &&
+                  d.pendingCount === 0 && d.lostCount === d.monthClosedCount;
+    var hasPending = d.pendingCount > 0;
+    if (!allLost && !hasPending) return;  // 有成交即靜默——不讓面板變成被忽略的背景雜訊
+
+    var nudge = el("div", allLost ? "deal-nudge deal-nudge-warn" : "deal-nudge");
+    if (allLost) {
+      nudge.appendChild(el("div", "nudge-head",
+        "本月 " + d.lostCount + " 件結案都記為未成交 — 有談成的案子嗎？"));
+      nudge.appendChild(el("div", "nudge-sub",
+        "補上金額，業績才算得進去。確認真的未成交的直接略過即可。"));
+      renderNudgeList(d.lostRecs, "確認結果", "cta-accent", nudge);
+    } else {
+      nudge.appendChild(el("div", "nudge-head",
+        "有 " + d.pendingCount + " 件結案還沒填結果"));
+      nudge.appendChild(el("div", "nudge-sub",
+        "成交或未成交，選一下就好 — 業績才算得進去。"));
+      renderNudgeList(d.pendingRecs, "填結果", "cta-ok", nudge);
+    }
+    host.appendChild(nudge);
+  }
+
   function renderDealTrack(state) {
     var host = $("deal-track"); if (!host) return;
     clear(host);
@@ -577,20 +619,13 @@
       var pace = (d.dailyPace % 1 === 0) ? String(d.dailyPace) : d.dailyPace.toFixed(1);
       host.appendChild(el("div", "deal-pace", "本月已過 " + d.daysElapsed + " 天・平均每天 " + pace + " 件"));
     }
-    // 結果分布：成交（金額>0）· 未成交（金額=0，明確結果）· 待補（未填）。0 不再籠統說「尚未登記」。
+    // 結果分布：純二元——成交（金額>0）・未成交（金額=0）。「待補」不顯示，改為下方可點的「填結果」nudge。
     if (d.monthClosedCount > 0) {
       var parts = [];
       if (d.honestCount > 0) parts.push("成交 " + d.honestCount + " 件（" + fmtMoney(d.honestAmount) + "）");
       if (d.lostCount > 0) parts.push("未成交 " + d.lostCount + " 件");
-      if (d.pendingCount > 0) parts.push("待補 " + d.pendingCount + " 件");
       if (parts.length) host.appendChild(el("div", "deal-target", "其中：" + parts.join("・")));
-      // 全部未成交＝可疑：多半是批次預設 0（如直接在 Airtable 封存舊案），非逐筆評估
-      if (d.lostCount === d.monthClosedCount && d.lostCount > 1) {
-        host.appendChild(el("div", "deal-gap",
-          "本月結案全部記為未成交（成交金額 0）——若為批次封存舊案，建議與真正未成交分開標記"));
-      } else if (d.pendingCount > 0) {
-        host.appendChild(el("div", "deal-gap", d.pendingCount + " 件成交金額待補，結案時可一併補登"));
-      }
+      renderDealNudge(d, host);
     }
 
     host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));
