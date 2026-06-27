@@ -287,6 +287,30 @@ function test_staffLoader() {
         QJ.ownerName("某人 (" + NEW_UID + ")") === "鍾文芳");
 }
 
+/* ===========================================================================
+ * TASK 2F — 平均首覆 recent-inbound window (excludes backfill-stamped old cases)
+ * ======================================================================== */
+function test_avgRespWindow() {
+  console.log("TASK 2F — 平均首覆 recent-inbound window");
+  var OWNER = "黃玲智";
+  // OLD artifact: inbound 40d ago, 首次回應時間 stamped 1d ago (a 39-day fake) → EXCLUDED (>窗)
+  var oldRec = R({ 狀態: QJ.STATUS.HUMAN, 承辦人: OWNER, 首次進線時間: daysAgo(40), 首次回應時間: daysAgo(1) });
+  // RECENT real: inbound 3d ago, responded ~2h later → INCLUDED
+  var recentRec = R({ 狀態: QJ.STATUS.HUMAN, 承辦人: OWNER,
+                      首次進線時間: daysAgo(3),
+                      首次回應時間: new Date(daysAgo(3).getTime() + 2 * 3600000) });
+  var s = QJ.logic.analyze([oldRec, recentRec], {});
+  var t = (s.team || []).filter(function (x) { return x.owner === OWNER; })[0];
+  check("AR owner has a team entry", !!t, s.team);
+  check("AR avgRespHrs reflects the recent case only (~2h, not the 39-day artifact)",
+        t && t.avgRespHrs != null && t.avgRespHrs < 24, t && t.avgRespHrs);
+  // old-only → all excluded → avgRespHrs null (honest: no in-window first-response data)
+  var s2 = QJ.logic.analyze([oldRec], {});
+  var t2 = (s2.team || []).filter(function (x) { return x.owner === OWNER; })[0];
+  check("AR old-inbound-only → avgRespHrs null (excluded, not an inflated number)",
+        !t2 || t2.avgRespHrs == null, t2 && t2.avgRespHrs);
+}
+
 /* ---- run ---- */
 console.log("=== quanjin-ops dashboard test harness ===");
 test_analyze();
@@ -294,6 +318,7 @@ test_isStaffOwnRecord();
 test_buildFilterFormula();
 test_helpers();
 test_staffLoader();
+test_avgRespWindow();
 console.log("");
 if (FAILS.length) {
   console.log("FAILED: " + FAILS.length + " — " + safe(FAILS));

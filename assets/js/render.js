@@ -624,7 +624,10 @@
       if (t.avgRespHrs != null && !isNaN(t.avgRespHrs)) {
         var meta = el("div", "team-meta");
         var rtxt = t.avgRespHrs < 24 ? (Math.round(t.avgRespHrs) + " 小時") : (Math.round(t.avgRespHrs / 2.4) / 10 + " 天");
+        var respWin = (window.QJ && QJ.RESP_WINDOW_DAYS) || 14;
         meta.appendChild(document.createTextNode("平均首覆 " + rtxt));
+        meta.appendChild(el("span", "team-meta-sub", "（近 " + respWin + " 天進線）"));
+        meta.title = "近 " + respWin + " 天進線案件的系統內首次回應時間平均；OA Manager 的回覆系統無法記錄，不計入。";
         card.appendChild(meta);
       }
 

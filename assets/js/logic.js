@@ -328,12 +328,17 @@
     }
     var overloadThreshold = Math.max(5, 1.5 * meanActive);
 
-    // 平均首覆：對「有首次進線時間＋首次回應時間」者，回應延遲＝首次回應−首次進線（小時），依承辦人平均。
+    // 平均首覆：對「近 N 天進線 且 有首次進線時間＋首次回應時間」者，回應延遲＝首次回應−首次進線
+    // （小時），依承辦人平均。限定近 N 天進線：舊案的首次回應時間多為近期動作才補登（非真實回覆，
+    // OA 端回覆系統看不到），會把平均灌成數十天的假值（QJ.RESP_WINDOW_DAYS，單一來源於 config.js）。
     var respMap = {};
+    var respWinDays = (typeof QJ !== "undefined" && QJ.RESP_WINDOW_DAYS) || 14;
+    var respCutoff = now.getTime() - respWinDays * DAY_MS;
     for (var rp = 0; rp < recs.length; rp++) {
       var rr2 = recs[rp];
       var inq = toDate(rr2.首次進線時間), rsp = toDate(rr2.首次回應時間);
       if (!inq || !rsp || rsp.getTime() < inq.getTime()) continue;
+      if (inq.getTime() < respCutoff) continue;  // 舊進線排除：補登時間 ≠ 真實回覆，會灌大平均
       var ow2 = ownerNameOf(rr2.承辦人) || "未指派";
       if (!respMap[ow2]) respMap[ow2] = { sum: 0, n: 0 };
       respMap[ow2].sum += (rsp.getTime() - inq.getTime()) / 3600000;

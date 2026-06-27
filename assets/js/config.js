@@ -36,6 +36,10 @@ QJ.proxyConfigured = function () { return !!(QJ.proxyUrl() && QJ.proxyToken()); 
 /* ---- 進度狀態值（對齊生產 CRM 三態，prod 真實值）---- */
 QJ.STATUS = { OPEN:"跟進中", HUMAN:"人工接管中", DONE:"已完成" };
 QJ.STATUS_DISPLAY = { "跟進中":"智能助手跟進中", "人工接管中":"人工接管中", "已完成":"已完成" };
+/* 平均首覆：只計「近 N 天進線」的案件。舊案的「首次回應時間」多半是近期才被動作（接管／結案／
+ * 已聯繫）補登的，而非真實回覆時刻（OA Manager 的回覆系統看不到），會把平均灌成數十天的假值。
+ * 限定近 N 天進線 → 補登時間貼近進線，平均反映真實近況。OA 端的回覆本來就不計入。 */
+QJ.RESP_WINDOW_DAYS = 14;
 
 /* ---- FIELD_MAP 預設：語意鍵 → 候選欄位名（啟發式自動對應，使用者於設定區確認/修改）----
  * 自動偵測時，對每個語意鍵取「第一個存在於 schema 的候選」。lastInteraction 特殊：取多欄最新有效值。
