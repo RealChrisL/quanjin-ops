@@ -124,11 +124,11 @@
       return;
     }
     if (cta === "close-confirm") {
-      // 成交結案：金額必填且 > 0。未成交請按「未成交」，金額待補請按「暫不記錄」。
+      // 成交結案：金額必填且 > 0。若未成交，請按「未成交」（記為成交金額 0）。
       var v2 = QJ.render.getInlineAmount ? QJ.render.getInlineAmount(id) : null;
       var n2 = Number(v2);
       if (!(v2 != null && v2 !== "" && n2 > 0)) {
-        toast("請輸入成交金額（大於 0）。未成交請按「未成交」，金額待補請按「暫不記錄」。", "warn");
+        toast("請輸入成交金額（大於 0）。若此案未成交，請按「未成交」。", "warn");
         return;
       }
       var rcf = findRec(id);
@@ -146,16 +146,6 @@
       var patchL = { 狀態: QJ.STATUS.DONE, 成交金額: 0, 結案日期: QJ.todayISODate() };
       if (rcl && !rcl.首次回應時間) patchL.首次回應時間 = nowISO();
       doPatch(id, patchL, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); r.成交金額 = 0; if (rcl && !rcl.首次回應時間) r.首次回應時間 = new Date(); }, "未成交結案", { action: "close", amount: 0 });
-      QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
-      return;
-    }
-    if (cta === "close-skip") {
-      // 暫不記錄（成交但金額待補）：純結案，不寫成交金額，之後用「補金額」補登。
-      var rcs = findRec(id);
-      if (!window.confirm("先結案「" + ((rcs && rcs.委託人) || "此案") + "」，成交金額之後再補登？\n結案後會從清單移除，需逐筆恢復。")) return;
-      var patchS = { 狀態: QJ.STATUS.DONE, 結案日期: QJ.todayISODate() };
-      if (rcs && !rcs.首次回應時間) patchS.首次回應時間 = nowISO();
-      doPatch(id, patchS, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (rcs && !rcs.首次回應時間) r.首次回應時間 = new Date(); }, "結案（金額待補）", { action: "close", amount: undefined });
       QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
       return;
     }
@@ -178,8 +168,12 @@
       confirmMsg = "交回智能助手（恢復跟進）「" + nm + "」？" +
         ((QJ.proxyConfigured && QJ.proxyConfigured()) ? "\n系統會通知客戶已恢復服務。" : "");
     } else if (next === S.DONE) {
-      action = "close"; label = "結案";
-      confirmMsg = "確定結案「" + nm + "」？\n結案後會從清單移除，需逐筆恢復。";
+      // 嚴格 forced-outcome：下拉改為「已完成」不再裸結案，改開結果選擇器（成交/未成交），
+      // 由選擇器送出實際結案。先把下拉退回原值，避免在尚未確認結果時就顯示已完成。
+      t.value = cur;
+      var host = (t.closest && (t.closest("td") || t.closest(".queue-cta-cell") || t.closest(".cta-ctrls"))) || t.parentNode;
+      QJ.render.openCloseOutcome && QJ.render.openCloseOutcome(host, id);
+      return;
     } else { t.value = cur; return; }
     if (confirmMsg && !window.confirm(confirmMsg)) { t.value = cur; return; }
     doPatch(id, { 狀態: next }, function (r) { r.狀態 = next; }, label, { action: action });

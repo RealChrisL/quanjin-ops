@@ -783,9 +783,9 @@
     host.appendChild(wrap);
     inp.focus();
   };
-  // 結案結果選擇器（forced-outcome 2026-06-27）：結案時必須選「成交（填金額）」或
-  // 「未成交（一鍵）」，取代原本「金額留空直接結案」的零摩擦跳過 —— 成交金額登記率的
-  // 關鍵槓桿。「暫不記錄」是刻意弱化的退路（成交但金額待補），不是預設的省事路徑。
+  // 結案結果選擇器（forced-outcome 2026-06-27, 嚴格版）：結案一律必須選「成交（填金額）」
+  // 或「未成交（一鍵）」—— 取代原本「金額留空直接結案」的零摩擦跳過。成交金額登記率的關鍵
+  // 槓桿；狀態下拉改為已完成時也走這個選擇器（無旁路）。
   R.openCloseOutcome = function (host, id) {
     if (!host) return;
     var exist = host.querySelector('.inline-edit[data-edit-id="' + cssEscape(id) + '"]');
@@ -805,7 +805,6 @@
 
     wrap.appendChild(ctaButton("成交結案", "close-confirm", id, "cta-ok", false, "填入成交金額後送件結案"));
     wrap.appendChild(ctaButton("未成交", "close-lost", id, "cta-accent", false, "本案未成交結案（成交金額記為 0）"));
-    wrap.appendChild(ctaButton("暫不記錄", "close-skip", id, "co-skip", false, "成交但金額待補：先結案，金額之後補登"));
 
     var cancel = el("button", "cta", "取消");
     cancel.type = "button";
