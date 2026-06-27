@@ -553,7 +553,7 @@
     if (rest.length) {
       var more = rest.reduce(function (s, r) { return s + (r.count || 0); }, 0);
       var li2 = el("li", "dl-row dl-overflow");
-      li2.appendChild(el("span", "dl-left", "其他"));
+      li2.appendChild(el("span", "dl-left", "其餘類型"));
       li2.appendChild(el("span", "dl-count", more + " 件"));
       ul.appendChild(li2);
     }
