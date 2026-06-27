@@ -137,6 +137,17 @@ QJ.applyStaffRoster = function (payload) {
     if (Array.isArray(names)) {
       names.forEach(function (n) { if (n) QJ.STAFF_NAMES[n] = true; });
     }
+    // 改派 picker 名冊（QJ.TEAM_ROSTER）也由後端重建：assignable_uids = 同仁∪管理員（不含 dev）。
+    // 併集（只新增、不移除）→ config.json 加一位同仁即自動出現在改派下拉，不必再改本檔。
+    var assignable = payload.assignable_uids;
+    if (assignable && typeof assignable === "object" && QJ.TEAM_ROSTER) {
+      var have = {};
+      QJ.TEAM_ROSTER.forEach(function (m) { if (m && m.uid) have[m.uid] = true; });
+      Object.keys(assignable).forEach(function (u) {
+        if (u && !have[u]) { QJ.TEAM_ROSTER.push({ uid: u, name: assignable[u] || u }); have[u] = true; }
+        if (u) QJ.TEAM_BY_UID[u] = assignable[u] || QJ.TEAM_BY_UID[u] || u; // ownerName 一致
+      });
+    }
     return true;
   } catch (e) { return false; }
 };

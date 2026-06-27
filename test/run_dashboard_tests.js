@@ -248,6 +248,8 @@ function test_staffLoader() {
         isr({ fields: { "LINE用戶ID": NEW_UID } }) === false);
   check("SL pre-apply backend-only OA id NOT yet staff",
         isr({ fields: { "OA聊天ID": NEW_OA } }) === false);
+  check("SL pre-apply backend uid NOT yet in 改派 roster",
+        (QJ.TEAM_ROSTER || []).some(function (m) { return m.uid === NEW_UID; }) === false);
 
   // FALLBACK: null / non-ok payload → no-op, hardcoded roster intact
   check("SL applyStaffRoster(null) → false (no-op)", QJ.applyStaffRoster(null) === false);
@@ -256,16 +258,22 @@ function test_staffLoader() {
   check("SL fallback preserves hardcoded OA id (奕溱)", QJ.STAFF_OA_IDS[STAFF_OA] === "奕溱");
 
   // SUCCESS: merge backend roster onto the hardcoded values (Object.assign union)
-  var payload = { ok: true, staff_oa_chat_ids: {}, staff_uids: {},
+  var payload = { ok: true, staff_oa_chat_ids: {}, staff_uids: {}, assignable_uids: {},
                   staff_names: ["鍾文芳", "傅子璇", "徐鈞澤", "HSU"] };
   payload.staff_oa_chat_ids[NEW_OA] = "傅子璇";
   payload.staff_uids[NEW_UID] = "鍾文芳";
+  payload.assignable_uids[NEW_UID] = "鍾文芳";
   check("SL applyStaffRoster(ok payload) → true", QJ.applyStaffRoster(payload) === true);
   check("SL STAFF_OA_IDS gains backend OA id", QJ.STAFF_OA_IDS[NEW_OA] === "傅子璇");
   check("SL TEAM_BY_UID gains backend uid", QJ.TEAM_BY_UID[NEW_UID] === "鍾文芳");
   check("SL STAFF_NAMES gains backend name (鍾文芳)", QJ.STAFF_NAMES["鍾文芳"] === true);
   check("SL merge keeps hardcoded uid (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
   check("SL merge keeps hardcoded OA id (奕溱)", QJ.STAFF_OA_IDS[STAFF_OA] === "奕溱");
+  // 改派 picker single-source: a backend-only colleague now appears in QJ.TEAM_ROSTER
+  check("SL TEAM_ROSTER gains backend assignable colleague",
+        (QJ.TEAM_ROSTER || []).some(function (m) { return m.uid === NEW_UID && m.name === "鍾文芳"; }) === true);
+  check("SL TEAM_ROSTER keeps hardcoded entry (黃玲智)",
+        (QJ.TEAM_ROSTER || []).some(function (m) { return m.uid === HL_UID; }) === true);
 
   // THE DRIFT FIX: a backend-only staff member is now filtered out of the client list
   check("SL post-apply backend uid → _isStaffOwnRecord true",
