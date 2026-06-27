@@ -192,7 +192,7 @@
    * ========================================================================== */
   var ACTION_KIND_LABEL = { pending: "待回覆", overdue: "逾期跟進", close: "可結案", amount: "待補金額" };
   var TIP_CONTACTED = "已聯繫：記下你已回覆或聯繫這位客戶，案件暫時不再提醒；客戶再來訊會自動重新計時。";
-  var TIP_CLOSE = "結案：案件辦理完成，會移出清單（之後要逐筆「恢復」才能拉回）。送出前可順手填成交金額。";
+  var TIP_CLOSE = "結案：案件辦理完成，會移出清單（之後要逐筆「恢復」才能拉回）。結案時需選「成交（填金額）」或「未成交」。";
 
   function ctaButton(label, ctaType, id, variant, disabled, title) {
     var b = el("button", "cta" + (variant ? " " + variant : ""), label);
@@ -780,6 +780,40 @@
     wrap.appendChild(inp);
     wrap.appendChild(ok);
     wrap.appendChild(cancel);
+    host.appendChild(wrap);
+    inp.focus();
+  };
+  // 結案結果選擇器（forced-outcome 2026-06-27）：結案時必須選「成交（填金額）」或
+  // 「未成交（一鍵）」，取代原本「金額留空直接結案」的零摩擦跳過 —— 成交金額登記率的
+  // 關鍵槓桿。「暫不記錄」是刻意弱化的退路（成交但金額待補），不是預設的省事路徑。
+  R.openCloseOutcome = function (host, id) {
+    if (!host) return;
+    var exist = host.querySelector('.inline-edit[data-edit-id="' + cssEscape(id) + '"]');
+    if (exist) { var i0 = exist.querySelector(".amt-input"); if (i0) i0.focus(); return; }
+
+    var wrap = el("span", "inline-edit close-outcome");
+    wrap.setAttribute("data-edit-id", id);
+    wrap.setAttribute("data-edit-cta", "close");
+    wrap.appendChild(el("span", "co-label", "本案結果？"));
+
+    var inp = el("input", "amt-input");
+    inp.type = "number"; inp.min = "1"; inp.step = "1";
+    inp.placeholder = "成交金額";
+    inp.setAttribute("data-id", id);
+    inp.setAttribute("aria-label", "成交金額");
+    wrap.appendChild(inp);
+
+    wrap.appendChild(ctaButton("成交結案", "close-confirm", id, "cta-ok", false, "填入成交金額後送件結案"));
+    wrap.appendChild(ctaButton("未成交", "close-lost", id, "cta-accent", false, "本案未成交結案（成交金額記為 0）"));
+    wrap.appendChild(ctaButton("暫不記錄", "close-skip", id, "co-skip", false, "成交但金額待補：先結案，金額之後補登"));
+
+    var cancel = el("button", "cta", "取消");
+    cancel.type = "button";
+    cancel.addEventListener("click", function () {
+      if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
+    });
+    wrap.appendChild(cancel);
+
     host.appendChild(wrap);
     inp.focus();
   };

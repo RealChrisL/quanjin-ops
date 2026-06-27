@@ -329,6 +329,12 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 }
 .amt-input:focus { border-color:var(--accent); outline:none; }
 .inline-edit { display:inline-flex; align-items:center; gap:8px; }
+/* 結案結果選擇器：成交（填金額）／未成交（一鍵）為主，暫不記錄為刻意的弱化退路 */
+.inline-edit.close-outcome { flex-wrap:wrap; gap:6px; }
+.close-outcome .co-label { font-size:12.5px; font-weight:700; color:var(--ink2); width:100%; }
+.close-outcome .amt-input { width:104px; }
+.close-outcome .co-skip { opacity:.62; font-weight:500; font-size:12.5px; padding:6px 10px; }
+.close-outcome .co-skip:hover { opacity:1; }
 
 /* =============================================================================
  * 貳 · 佇列 + 切片 + 成交進度欄

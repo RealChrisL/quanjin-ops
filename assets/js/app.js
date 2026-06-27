@@ -100,7 +100,9 @@
 
     if (cta === "amount" || cta === "close") {
       var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls") || btn.closest(".dl-row"))) || btn.parentNode;
-      QJ.render.openInlineAmount && QJ.render.openInlineAmount(host, id, cta);
+      // 結案 → forced-outcome 選擇器（成交填金額／未成交一鍵）；補金額 → 原數字輸入
+      if (cta === "close") { QJ.render.openCloseOutcome && QJ.render.openCloseOutcome(host, id); }
+      else { QJ.render.openInlineAmount && QJ.render.openInlineAmount(host, id, cta); }
       return;
     }
 
@@ -122,16 +124,38 @@
       return;
     }
     if (cta === "close-confirm") {
-      var rcf = findRec(id);
-      if (!window.confirm("確定結案「" + ((rcf && rcf.委託人) || "此案") + "」？\n結案後會從清單移除，需逐筆恢復。")) return;
+      // 成交結案：金額必填且 > 0。未成交請按「未成交」，金額待補請按「暫不記錄」。
       var v2 = QJ.render.getInlineAmount ? QJ.render.getInlineAmount(id) : null;
-      var patch2 = { 狀態: QJ.STATUS.DONE, 結案日期: QJ.todayISODate() };
       var n2 = Number(v2);
-      // 只在金額 > 0 時寫入；0/空白 → 留待補記，避免把結案誤標為「未成交」
-      var hasAmt = (v2 != null && v2 !== "" && n2 > 0);
-      if (hasAmt) patch2.成交金額 = n2;
+      if (!(v2 != null && v2 !== "" && n2 > 0)) {
+        toast("請輸入成交金額（大於 0）。未成交請按「未成交」，金額待補請按「暫不記錄」。", "warn");
+        return;
+      }
+      var rcf = findRec(id);
+      if (!window.confirm("以成交 NT$ " + n2.toLocaleString() + " 結案「" + ((rcf && rcf.委託人) || "此案") + "」？\n結案後會從清單移除，需逐筆恢復。")) return;
+      var patch2 = { 狀態: QJ.STATUS.DONE, 成交金額: n2, 結案日期: QJ.todayISODate() };
       if (rcf && !rcf.首次回應時間) patch2.首次回應時間 = nowISO();
-      doPatch(id, patch2, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (hasAmt) r.成交金額 = n2; if (rcf && !rcf.首次回應時間) r.首次回應時間 = new Date(); }, "送件結案", { action: "close", amount: hasAmt ? n2 : undefined });
+      doPatch(id, patch2, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); r.成交金額 = n2; if (rcf && !rcf.首次回應時間) r.首次回應時間 = new Date(); }, "成交結案", { action: "close", amount: n2 });
+      QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
+      return;
+    }
+    if (cta === "close-lost") {
+      // 未成交一鍵結案：成交金額記為 0 → 生產 CRM 衍生為「未成交」。
+      var rcl = findRec(id);
+      if (!window.confirm("以未成交結案「" + ((rcl && rcl.委託人) || "此案") + "」？\n會記為未成交（成交金額 0），並從清單移除。")) return;
+      var patchL = { 狀態: QJ.STATUS.DONE, 成交金額: 0, 結案日期: QJ.todayISODate() };
+      if (rcl && !rcl.首次回應時間) patchL.首次回應時間 = nowISO();
+      doPatch(id, patchL, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); r.成交金額 = 0; if (rcl && !rcl.首次回應時間) r.首次回應時間 = new Date(); }, "未成交結案", { action: "close", amount: 0 });
+      QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
+      return;
+    }
+    if (cta === "close-skip") {
+      // 暫不記錄（成交但金額待補）：純結案，不寫成交金額，之後用「補金額」補登。
+      var rcs = findRec(id);
+      if (!window.confirm("先結案「" + ((rcs && rcs.委託人) || "此案") + "」，成交金額之後再補登？\n結案後會從清單移除，需逐筆恢復。")) return;
+      var patchS = { 狀態: QJ.STATUS.DONE, 結案日期: QJ.todayISODate() };
+      if (rcs && !rcs.首次回應時間) patchS.首次回應時間 = nowISO();
+      doPatch(id, patchS, function (r) { r.狀態 = QJ.STATUS.DONE; r.結案日期 = new Date(); if (rcs && !rcs.首次回應時間) r.首次回應時間 = new Date(); }, "結案（金額待補）", { action: "close", amount: undefined });
       QJ.render.closeInlineAmount && QJ.render.closeInlineAmount(id);
       return;
     }
