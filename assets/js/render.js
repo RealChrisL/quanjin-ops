@@ -589,15 +589,15 @@
     var nudge = el("div", allLost ? "deal-nudge deal-nudge-warn" : "deal-nudge");
     if (allLost) {
       nudge.appendChild(el("div", "nudge-head",
-        "本月 " + d.lostCount + " 件結案都記為未成交 — 有談成的案子嗎？"));
+        "本月 " + d.lostCount + " 件結案都記為未成交 — 裡面有談成的嗎？"));
       nudge.appendChild(el("div", "nudge-sub",
-        "補上金額，業績才算得進去。確認真的未成交的直接略過即可。"));
+        "這些案子跑下來都不容易 🙏 有談成的補一下金額，您的辛苦才不會白費；真的沒成的，直接略過就好，不用勉強。"));
       renderNudgeList(d.lostRecs, "確認結果", "cta-accent", nudge);
     } else {
       nudge.appendChild(el("div", "nudge-head",
-        "有 " + d.pendingCount + " 件結案還沒填結果"));
+        "有 " + d.pendingCount + " 件結案還沒填結果，方便補一下嗎？"));
       nudge.appendChild(el("div", "nudge-sub",
-        "成交或未成交，選一下就好 — 業績才算得進去。"));
+        "成交或未成交，輕鬆點一下就好，您的辛苦才算得進去 🙏"));
       renderNudgeList(d.pendingRecs, "填結果", "cta-ok", nudge);
     }
     host.appendChild(nudge);
