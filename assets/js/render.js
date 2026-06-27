@@ -577,11 +577,20 @@
       var pace = (d.dailyPace % 1 === 0) ? String(d.dailyPace) : d.dailyPace.toFixed(1);
       host.appendChild(el("div", "deal-pace", "本月已過 " + d.daysElapsed + " 天・平均每天 " + pace + " 件"));
     }
-    if (d.honestCount > 0) {
-      host.appendChild(el("div", "deal-target",
-        "其中 " + d.honestCount + " 件已登金額，合計 " + fmtMoney(d.honestAmount)));
-    } else if (d.monthClosedCount > 0) {
-      host.appendChild(el("div", "deal-gap", "成交金額尚未登記，結案時可一併補登"));
+    // 結果分布：成交（金額>0）· 未成交（金額=0，明確結果）· 待補（未填）。0 不再籠統說「尚未登記」。
+    if (d.monthClosedCount > 0) {
+      var parts = [];
+      if (d.honestCount > 0) parts.push("成交 " + d.honestCount + " 件（" + fmtMoney(d.honestAmount) + "）");
+      if (d.lostCount > 0) parts.push("未成交 " + d.lostCount + " 件");
+      if (d.pendingCount > 0) parts.push("待補 " + d.pendingCount + " 件");
+      if (parts.length) host.appendChild(el("div", "deal-target", "其中：" + parts.join("・")));
+      // 全部未成交＝可疑：多半是批次預設 0（如直接在 Airtable 封存舊案），非逐筆評估
+      if (d.lostCount === d.monthClosedCount && d.lostCount > 1) {
+        host.appendChild(el("div", "deal-gap",
+          "本月結案全部記為未成交（成交金額 0）——若為批次封存舊案，建議與真正未成交分開標記"));
+      } else if (d.pendingCount > 0) {
+        host.appendChild(el("div", "deal-gap", d.pendingCount + " 件成交金額待補，結案時可一併補登"));
+      }
     }
 
     host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));

@@ -287,6 +287,7 @@
     var closable = active.filter(function (r) { return isHuman(r); });
     // 本月結案集：已完成 + 結案日期落在當月 → 統計件數／案型／承辦人／已登金額。
     var monthClosedCount = 0, honestCount = 0, honestAmount = 0;
+    var dealLost = 0, dealPending = 0;  // 成交金額===0 → 未成交；空白 → 待補
     var closeTypeMap = {}, closeOwnerMap = {};
     for (var mi = 0; mi < recs.length; mi++) {
       var mr = recs[mi];
@@ -300,6 +301,8 @@
       closeOwnerMap[mow] = (closeOwnerMap[mow] || 0) + 1;
       var mamt = toNumber(mr.成交金額);
       if (mamt != null && mamt > 0) { honestCount += 1; honestAmount += mamt; }
+      else if (mamt === 0) { dealLost += 1; }   // 成交金額=0 → 未成交（明確的結果，非「未登記」）
+      else { dealPending += 1; }                 // 空白 → 金額待補
     }
     var byType = Object.keys(closeTypeMap).map(function (k) { return { label: k, count: closeTypeMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
     var byOwner = Object.keys(closeOwnerMap).map(function (k) { return { label: k, count: closeOwnerMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
@@ -437,6 +440,8 @@
         byOwner: byOwner,
         honestCount: honestCount,
         honestAmount: honestAmount,
+        lostCount: dealLost,
+        pendingCount: dealPending,
         closable: closable,
       },
       actions: actions,

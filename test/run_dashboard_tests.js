@@ -311,6 +311,21 @@ function test_avgRespWindow() {
         !t2 || t2.avgRespHrs == null, t2 && t2.avgRespHrs);
 }
 
+/* ===========================================================================
+ * TASK 2G — 本月結案 成交/未成交/待補 split (0 = 未成交, NOT 「尚未登記」)
+ * ======================================================================== */
+function test_dealOutcomeSplit() {
+  console.log("TASK 2G — 本月結案 成交/未成交/待補 split");
+  var t = new Date();
+  var cd = new Date(t.getFullYear(), t.getMonth(), Math.min(t.getDate(), 15)); // 本月內
+  function closed(amt) { return R({ 狀態: QJ.STATUS.DONE, 結案日期: cd, 成交金額: amt }); }
+  var d = QJ.logic.analyze([closed(0), closed(0), closed(null), closed(50000)], {}).deal;
+  check("DS monthClosedCount = 4", d.monthClosedCount === 4, d.monthClosedCount);
+  check("DS 未成交(成交金額=0) → lostCount = 2", d.lostCount === 2, d.lostCount);
+  check("DS 待補(blank) → pendingCount = 1", d.pendingCount === 1, d.pendingCount);
+  check("DS 成交(>0) → honestCount = 1", d.honestCount === 1, d.honestCount);
+}
+
 /* ---- run ---- */
 console.log("=== quanjin-ops dashboard test harness ===");
 test_analyze();
@@ -319,6 +334,7 @@ test_buildFilterFormula();
 test_helpers();
 test_staffLoader();
 test_avgRespWindow();
+test_dealOutcomeSplit();
 console.log("");
 if (FAILS.length) {
   console.log("FAILED: " + FAILS.length + " — " + safe(FAILS));
