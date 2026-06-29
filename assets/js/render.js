@@ -652,22 +652,20 @@
   /* =============================================================================
    * 公開 API
    * ========================================================================== */
-  /* 結案審核：本月「所有」已結案逐筆複核（含未成交/待補——審核面要看得到才能修正）。
-   * 與「成交紀錄」帳本不同：帳本只肯定成交；這裡是監督——謝代書核對每筆結果、補正同仁在系統外
-   * 結的案子。每列「修正結果」開既有結果選擇器（openCloseOutcome，A4 已保留原結案日期）。
-   * 資料來源優先用 GET /close-review 的 `cases`（伺服器全表抓取＋分類），不靠瀏覽器的「進行中
-   * 案件」抓取視窗——否則一筆「最近結案但久未互動」的案子會落在抓取視窗外，導致看板誤顯示
-   * 「本月尚無結案案件」。端點未回應時才退回 closedRecs。系統外案件置頂（金額多半沒登記）。 */
+  /* 結案審核：本月所有已結案逐筆檢視（含未成交/待補——審核面要看得到才能修正）。
+   * 統一列出，不區分「系統外」——只是一份本月結案清單，每列「修正結果」開既有結果選擇器
+   * （openCloseOutcome，A4 已保留原結案日期）。資料來源優先用 GET /close-review 的 `cases`
+   * （伺服器全表抓取），不靠瀏覽器的「進行中案件」抓取視窗——否則一筆「最近結案但久未互動」
+   * 的案子會落在抓取視窗外，導致看板誤顯示「本月尚無結案案件」。端點未回應時才退回 closedRecs。 */
   function renderCloseReview(state) {
     var host = $("close-review"); if (!host) return;
     clear(host);
 
     var cr = QJ.closeReview;
-    var rows = [], haveProv = false;
+    var rows = [];
 
     if (cr && cr.ok && Object.prototype.toString.call(cr.cases) === "[object Array]") {
       // 伺服器權威來源：看板反映 proxy 的全表抓取，與瀏覽器抓取視窗脫鉤。
-      haveProv = true;
       var ym = (function () { var n = new Date(); return n.getFullYear() + "-" + ("0" + (n.getMonth() + 1)).slice(-2); })();
       cr.cases.forEach(function (c) {
         if (!c.closedDate || c.closedDate.slice(0, 7) !== ym) return; // 本月（依結案日期字串前綴，免時區誤差）
@@ -675,23 +673,18 @@
         rows.push({
           id: c.id, name: c.name || "?", caseType: c.caseType || "",
           mo: +p[1] || null, day: +p[2] || null,
-          amount: (typeof c.amount === "number") ? c.amount : null,
-          external: !!c.external, closer: c.closer || "", ownerName: ""
+          amount: (typeof c.amount === "number") ? c.amount : null
         });
       });
     } else {
-      // 降級：瀏覽器抓取的 closedRecs + byRecordId provenance（端點未回應時）。
+      // 降級：瀏覽器抓取的 closedRecs（端點未回應時）。
       var recs = (state.review && state.review.closedRecs) || [];
-      var prov = (cr && cr.byRecordId) || {};
-      for (var k in prov) { if (prov.hasOwnProperty(k)) { haveProv = true; break; } }
       recs.forEach(function (r) {
-        var p = prov[r.id] || null, cd = (r.結案日期 instanceof Date) ? r.結案日期 : null, a = r.成交金額;
+        var cd = (r.結案日期 instanceof Date) ? r.結案日期 : null, a = r.成交金額;
         rows.push({
           id: r.id, name: clientLabel(r.委託人), caseType: r.案件類型 || "",
           mo: cd ? cd.getMonth() + 1 : null, day: cd ? cd.getDate() : null,
-          amount: (a == null || a === "") ? null : Number(a),
-          external: !!(p && p.external), closer: (p && p.closer) || "",
-          ownerName: displayOwner(r.承辦人) || "未指派"
+          amount: (a == null || a === "") ? null : Number(a)
         });
       });
     }
@@ -701,28 +694,14 @@
       return;
     }
 
-    // 系統外置頂——最需要核對（伺服器已排好，降級路徑在此再排一次以保險）。
-    var ext = rows.filter(function (x) { return x.external; });
-    var ins = rows.filter(function (x) { return !x.external; });
-    var ordered = ext.concat(ins);
+    // 依結案日期排序（最近在上）。
+    rows.sort(function (a, b) { return ((b.mo || 0) * 100 + (b.day || 0)) - ((a.mo || 0) * 100 + (a.day || 0)); });
 
-    var meta = el("div", "review-meta");
-    meta.appendChild(el("span", "rm-total", "本月共 " + rows.length + " 件結案"));
-    if (haveProv && ext.length) {
-      meta.appendChild(el("span", "rm-extflag", ext.length + " 件系統外結案待核對"));
-    } else if (haveProv) {
-      meta.appendChild(el("span", "rm-clean", "本月結案均已登記完整"));
-    }
-    host.appendChild(meta);
-    if (haveProv && ext.length) {
-      host.appendChild(el("p", "review-hint",
-        "「系統外結案」是同仁未透過系統、直接在後台將案件結案的紀錄，成交金額可能尚未登記。請逐筆點「修正結果」確認並補上實際金額。"));
-    }
+    host.appendChild(el("div", "review-meta", "本月共 " + rows.length + " 件結案，可逐筆檢視與修正結果。"));
 
     var ul = el("ul", "review-list");
-    ordered.forEach(function (x) {
-      var li = el("li", "review-row" + (x.external ? " is-external" : ""));
-      li.setAttribute("data-id", x.id || "");
+    rows.forEach(function (x) {
+      var li = el("li", "review-row"); li.setAttribute("data-id", x.id || "");
 
       var n = x.amount, badge;
       if (n != null && n > 0) badge = el("span", "rv-out rv-won", "成交 " + fmtMoney(n));
@@ -732,19 +711,11 @@
       var l1 = el("div", "rv-l1");
       l1.appendChild(el("span", "rv-name", x.name));
       l1.appendChild(badge);
-      if (x.external) l1.appendChild(el("span", "rv-srcflag", "系統外"));
       li.appendChild(l1);
-
-      // 系統外 → 標來源（非人名）；系統內 → 結案者名（戰情室／同仁）；無稽核 → 退回承辦人。
-      var closerTxt;
-      if (x.external) closerTxt = "來源：後台直接結案";
-      else if (x.closer) closerTxt = "結案者：" + x.closer;
-      else closerTxt = "承辦：" + (x.ownerName || "未指派");
 
       var l2 = el("div", "rv-l2");
       l2.appendChild(el("span", "rv-meta",
         (x.caseType || "未分類") + (x.mo ? "・" + x.mo + "/" + x.day + " 結案" : "")));
-      l2.appendChild(el("span", "rv-closer" + (x.external ? " is-external" : ""), closerTxt));
       l2.appendChild(ctaButton("修正結果", "close", x.id, "rv-fix"));
       li.appendChild(l2);
       ul.appendChild(li);

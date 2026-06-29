@@ -370,79 +370,58 @@ function run() {
         !!td.querySelector('[data-cta="close-confirm"]') && !!td.querySelector('[data-cta="close-lost"]'));
   check("C5 status-select reverted to 跟進中 (not left on 已完成)", sel.value === QJ.STATUS.OPEN, sel.value);
 
-  /* ---- CASE 6: 結案審核 board — 系統外 column + ordering + graceful degradation ---- */
-  console.log("CASE 6 — 結案審核 板：系統外欄、置頂排序、降級");
+  /* ---- CASE 6: 結案審核 board — uniform list (no 系統外 emphasis) + server-sourced ---- */
+  console.log("CASE 6 — 結案審核 板：統一清單、伺服器來源、降級");
   // P1-1: the targeted refresh (app.js refreshCloseReview) calls QJ.render.renderCloseReview —
   // it MUST be exported, else the post-write/120s refresh is dead.
   check("C6 renderCloseReview exported on QJ.render", typeof QJ.render.renderCloseReview === "function");
 
   var crHost = DOC.createElement("div");
   DOC._byId["close-review"] = crHost;
+  var ym = (function () { var n = new Date(); return n.getFullYear() + "-" + ("0" + (n.getMonth() + 1)).slice(-2); })();
   var crState = { review: { closedRecs: [
     { id: "rIn",  委託人: "系統客", 案件類型: "遺囑", 結案日期: new Date(), 成交金額: 25000, 承辦人: "謝代書" },
     { id: "rExt", 委託人: "外部客", 案件類型: "遺囑", 結案日期: new Date(), 成交金額: 0,     承辦人: "" },
   ] } };
 
-  // (a) with provenance: external row flagged + floated to top
-  QJ.closeReview = { ok: true, byRecordId: {
-    rIn:  { external: false, closer: "戰情室", source: "dashboard" },
-    rExt: { external: true,  closer: "",       source: "external"  },
-  } };
-  QJ.render.renderCloseReview(crState);
+  // (a) UNIFORM list — no 系統外 chip / banner / hint / vermilion, no external-first ordering
+  QJ.closeReview = { ok: true, cases: [
+    { id: "sExt", name: "外部客", caseType: "買賣", closedDate: ym + "-20", amount: 0,     external: true,  closer: "",     source: "external"  },
+    { id: "sIn",  name: "系統客", caseType: "遺囑", closedDate: ym + "-25", amount: 30000, external: false, closer: "戰情室", source: "dashboard" }
+  ] };
+  QJ.render.renderCloseReview({ review: { closedRecs: [] } });
   var rows = crHost.querySelectorAll(".review-row");
-  check("C6a two rows rendered", rows.length === 2, rows.length);
-  check("C6a external row carries .is-external", !!crHost.querySelector(".review-row.is-external"));
-  check("C6a 系統外 floated to top (first row is external)",
-        rows[0] && rows[0].classList.contains("is-external"));
-  check("C6a external row shows 系統外 chip",
-        !!(rows[0] && rows[0].querySelector(".rv-srcflag")) &&
-        rows[0].querySelector(".rv-srcflag").textContent === "系統外");
-  check("C6a external closer line is source-framed, not a person",
-        !!(rows[0] && rows[0].querySelector(".rv-closer")) &&
-        rows[0].querySelector(".rv-closer").textContent.indexOf("來源：後台直接結案") >= 0,
-        rows[0] && rows[0].querySelector(".rv-closer") && rows[0].querySelector(".rv-closer").textContent);
-  check("C6a in-band row shows 結案者：戰情室",
-        !!(rows[1] && rows[1].querySelector(".rv-closer")) &&
-        rows[1].querySelector(".rv-closer").textContent.indexOf("結案者：戰情室") >= 0,
-        rows[1] && rows[1].querySelector(".rv-closer") && rows[1].querySelector(".rv-closer").textContent);
-  check("C6a meta banner flags the external count",
-        !!crHost.querySelector(".rm-extflag") &&
-        crHost.querySelector(".rm-extflag").textContent.indexOf("1 件系統外結案待核對") >= 0,
-        crHost.querySelector(".rm-extflag") && crHost.querySelector(".rm-extflag").textContent);
+  check("C6a all closed cases listed (2 rows)", rows.length === 2, rows.length);
+  check("C6a NO 系統外 chip anywhere", !crHost.querySelector(".rv-srcflag"));
+  check("C6a NO 系統外待核對 banner", !crHost.querySelector(".rm-extflag"));
+  check("C6a NO is-external styling", !crHost.querySelector(".review-row.is-external"));
+  check("C6a NO 來源：後台 / 系統外 text", crHost.textContent.indexOf("系統外") < 0 && crHost.textContent.indexOf("後台") < 0);
+  check("C6a neutral meta line", crHost.querySelector(".review-meta") &&
+        crHost.querySelector(".review-meta").textContent.indexOf("本月共 2 件結案") >= 0);
+  check("C6a most-recent first (sIn 25th before sExt 20th)",
+        rows[0].getAttribute("data-id") === "sIn" && rows[1].getAttribute("data-id") === "sExt");
+  check("C6a outcome badges (成交 / 未成交) + 修正結果 button",
+        !!crHost.querySelector(".rv-won") && !!crHost.querySelector(".rv-lost") &&
+        !!crHost.querySelector('[data-cta="close"]'));
 
-  // (b) degradation: no provenance → no external flag, closer falls back to 承辦, no 系統外 chip
+  // (b) the headline regression: closedRecs EMPTY but server cases present → STILL renders
+  QJ.render.renderCloseReview({ review: { closedRecs: [] } });
+  check("C6b closedRecs EMPTY + cases present → board STILL renders (the empty-board bug)",
+        crHost.querySelectorAll(".review-row").length === 2);
+
+  // (c) endpoint down → fall back to browser closedRecs
   QJ.closeReview = null;
   QJ.render.renderCloseReview(crState);
-  check("C6b no provenance → zero .is-external rows", !crHost.querySelector(".review-row.is-external"));
-  check("C6b no provenance → no 系統外 chip", !crHost.querySelector(".rv-srcflag"));
-  check("C6b no provenance → closer falls back to 承辦",
-        !!crHost.querySelector(".rv-closer") &&
-        crHost.querySelector(".rv-closer").textContent.indexOf("承辦") >= 0,
-        crHost.querySelector(".rv-closer") && crHost.querySelector(".rv-closer").textContent);
-  check("C6b no provenance → no external-count banner", !crHost.querySelector(".rm-extflag"));
+  check("C6c endpoint down → renders from closedRecs", crHost.querySelectorAll(".review-row").length === 2);
+  check("C6c fallback still has no 系統外 chip", !crHost.querySelector(".rv-srcflag"));
 
-  // (c) SERVER-SOURCED via cases[] — and the headline regression: closedRecs EMPTY but
-  // the server endpoint has cases → board MUST still render (the empty-board bug).
-  var ym = (function () { var n = new Date(); return n.getFullYear() + "-" + ("0" + (n.getMonth() + 1)).slice(-2); })();
-  var emptyState = { review: { closedRecs: [] } };  // browser fetched NOTHING
+  // (d) cases authoritative over closedRecs when BOTH present
   QJ.closeReview = { ok: true, cases: [
-    { id: "sIn",  name: "伺服器甲", caseType: "遺囑", closedDate: ym + "-15", amount: 30000, external: false, closer: "戰情室", source: "dashboard" },
-    { id: "sExt", name: "伺服器乙", caseType: "買賣", closedDate: ym + "-20", amount: 0,     external: true,  closer: "",       source: "external"  }
+    { id: "sOnly", name: "只在伺服器", caseType: "遺囑", closedDate: ym + "-10", amount: 0, external: true }
   ] };
-  QJ.render.renderCloseReview(emptyState);
-  var srows = crHost.querySelectorAll(".review-row");
-  check("C6c closedRecs EMPTY but cases present → board STILL renders (the bug fix)",
-        srows.length === 2, srows.length);
-  check("C6c rows come from server cases (by data-id)",
-        !!crHost.querySelector('[data-id="sExt"]') && !!crHost.querySelector('[data-id="sIn"]'));
-  check("C6c 系統外 floated to top from cases", srows[0] && srows[0].classList.contains("is-external"));
-  check("C6c meta count from cases (本月共 2)",
-        crHost.querySelector(".rm-total") && crHost.querySelector(".rm-total").textContent.indexOf("本月共 2 件") >= 0,
-        crHost.querySelector(".rm-total") && crHost.querySelector(".rm-total").textContent);
-  // (d) cases preferred over closedRecs when BOTH present (server is authoritative)
-  QJ.render.renderCloseReview(crState);  // crState.closedRecs has rIn/rExt; cases still has sIn/sExt
-  check("C6d cases win over closedRecs (server rows present, browser rows absent)",
-        !!crHost.querySelector('[data-id="sExt"]') && !crHost.querySelector('[data-id="rExt"]'));
+  QJ.render.renderCloseReview(crState);  // closedRecs has rIn/rExt; cases has sOnly
+  check("C6d cases win over closedRecs (server row present, browser rows absent)",
+        !!crHost.querySelector('[data-id="sOnly"]') && !crHost.querySelector('[data-id="rExt"]'));
 
   /* ---- CASE 7: write-proxy liveness banner (setWriteStatus) ---- */
   console.log("CASE 7 — 寫入代理存活指示燈");

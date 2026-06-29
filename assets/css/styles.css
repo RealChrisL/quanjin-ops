@@ -462,35 +462,22 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 .dr-meta { font-size:11.5px; color:var(--faint); }
 .dr-link { font-size:12px; text-decoration:none; opacity:.55; }
 .dr-link:hover { opacity:1; }
-/* 結案審核：本月所有已結案逐筆複核（監督面；要看得到未成交/待補才能修正） */
-/* 監印（audit）視覺：系統內為墨、系統外為朱印警示，呼應報頭朱印 */
-.review-meta { display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; font-size:12px; color:var(--ink2); margin-bottom:10px; }
-.rm-total { font-weight:600; color:var(--ink); }
-.rm-extflag { font-family:var(--fm); font-size:11px; font-weight:700; color:var(--seal-text); background:var(--accent); padding:1px 9px; border-radius:2px; letter-spacing:.03em; }
-.rm-clean { font-size:11.5px; color:var(--ok); }
-.review-hint { font-size:11.5px; line-height:1.65; color:var(--ink2); background:rgba(192,57,43,.06); border-left:2px solid var(--accent); padding:7px 11px; margin:0 0 13px; border-radius:0 3px 3px 0; }
+/* 結案審核：本月所有已結案逐筆檢視（統一清單，不區分系統外；要看得到未成交/待補才能修正） */
+.review-meta { font-size:12px; color:var(--ink2); margin-bottom:10px; }
 .review-empty { font-size:13px; color:var(--faint); }
 .review-list { list-style:none; margin:0; padding:0; }
 .review-row { padding:9px 0; border-bottom:1px solid var(--rule); }
 .review-row:last-child { border-bottom:none; }
-/* 系統外：朱印警示——左緣朱紅、淡朱底，如審核文件上蓋的紅章 */
-.review-row.is-external { padding-left:11px; margin-left:-3px; border-left:3px solid var(--accent); background:linear-gradient(90deg, rgba(192,57,43,.05), transparent 62%); }
 .rv-l1 { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
 .rv-name { font-size:13.5px; color:var(--ink); font-weight:500; }
 .rv-out { font-family:var(--fm); font-size:12.5px; font-weight:600; white-space:nowrap; }
 .rv-out.rv-won { color:var(--ok); }
 .rv-out.rv-lost { color:var(--ink2); font-weight:500; }
 .rv-out.rv-pend { color:var(--warn); }
-/* 系統外小章：反白朱紅 chip */
-.rv-srcflag { font-family:var(--fm); font-size:10px; font-weight:700; color:var(--seal-text); background:var(--accent); padding:1px 6px; border-radius:2px; letter-spacing:.05em; white-space:nowrap; }
 .rv-l2 { display:flex; justify-content:space-between; align-items:center; margin-top:4px; gap:8px; }
-.rv-meta { font-size:11.5px; color:var(--faint); white-space:nowrap; }
-.rv-closer { font-size:11.5px; color:var(--ink2); flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.rv-closer.is-external { color:var(--ink2); }
+.rv-meta { font-size:11.5px; color:var(--faint); flex:1; min-width:0; }
 .cta.rv-fix { background:transparent; color:var(--gold); border:1px solid var(--rule2); padding:3px 11px; font-size:12px; font-weight:500; white-space:nowrap; }
 .cta.rv-fix:hover { background:var(--bg); color:var(--ink); border-color:var(--gold); }
-.review-row.is-external .cta.rv-fix { color:var(--accent); border-color:rgba(192,57,43,.4); }
-.review-row.is-external .cta.rv-fix:hover { background:var(--accent); color:var(--seal-text); border-color:var(--accent); }
 /* 智能助手 24/7 戰績橫幅 — 綠左框＝系統運作中（非朱紅的「需處理」） */
 .agent-banner { background:var(--panel2); border:1px solid var(--rule2); border-left:6px solid var(--ok); padding:12px 20px; margin-bottom:18px; }
 .agent-banner[hidden] { display:none; }
