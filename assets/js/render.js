@@ -566,7 +566,7 @@
   function renderNudgeList(recs, ctaLabel, ctaStyle, host) {
     if (!recs || !recs.length) return;
     var ul = el("ul", "nudge-list");
-    recs.slice(0, 8).forEach(function (rec) {
+    recs.slice(0, 4).forEach(function (rec) {
       var li = el("li", "nudge-row");
       var nameStr = clientLabel(rec.委託人);
       if (rec.案件類型) nameStr += "｜" + rec.案件類型;
@@ -574,8 +574,8 @@
       li.appendChild(ctaButton(ctaLabel, "close", rec.id, ctaStyle));
       ul.appendChild(li);
     });
-    if (recs.length > 8) {
-      ul.appendChild(el("li", "nudge-more", "另有 " + (recs.length - 8) + " 件，可至 Airtable 補填"));
+    if (recs.length > 4) {
+      ul.appendChild(el("li", "nudge-more", "還有 " + (recs.length - 4) + " 件，有空再慢慢補就好"));
     }
     host.appendChild(ul);
   }
@@ -586,19 +586,19 @@
     var hasPending = d.pendingCount > 0;
     if (!allLost && !hasPending) return;  // 有成交即靜默——不讓面板變成被忽略的背景雜訊
 
-    var nudge = el("div", allLost ? "deal-nudge deal-nudge-warn" : "deal-nudge");
+    var nudge = el("div", "deal-nudge");
     if (allLost) {
       nudge.appendChild(el("div", "nudge-head",
-        "本月 " + d.lostCount + " 件結案都記為未成交 — 裡面有談成的嗎？"));
+        "本月結案目前都記為未成交 — 裡面有談成的嗎？"));
       nudge.appendChild(el("div", "nudge-sub",
-        "這些案子跑下來都不容易 🙏 有談成的補一下金額，您的辛苦才不會白費；真的沒成的，直接略過就好，不用勉強。"));
-      renderNudgeList(d.lostRecs, "確認結果", "cta-accent", nudge);
+        "有談成的補一下金額，您的辛苦才不會白費；真的沒成的，略過就好，不用急。"));
+      renderNudgeList(d.lostRecs, "登記", "nudge-btn", nudge);
     } else {
       nudge.appendChild(el("div", "nudge-head",
-        "有 " + d.pendingCount + " 件結案還沒填結果，方便補一下嗎？"));
+        "有幾件結案還沒登記結果"));
       nudge.appendChild(el("div", "nudge-sub",
-        "成交或未成交，輕鬆點一下就好，您的辛苦才算得進去 🙏"));
-      renderNudgeList(d.pendingRecs, "填結果", "cta-ok", nudge);
+        "成交或未成交，有空點一下就好 🙂"));
+      renderNudgeList(d.pendingRecs, "登記", "nudge-btn", nudge);
     }
     host.appendChild(nudge);
   }
