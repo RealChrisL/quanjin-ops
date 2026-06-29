@@ -183,7 +183,7 @@
     if (R._honestAmount > 0) {
       host.appendChild(el("div", "ab-roi", "近 30 天已登記成交 " + (R._honestCount || 0) + " 件，合計 " + fmtMoney(R._honestAmount)));
     } else {
-      host.appendChild(el("div", "ab-roi", "估算守住可挽回名單 NT$38 萬+（保守估算；待成交金額開始登記後轉為實測）"));
+      host.appendChild(el("div", "ab-roi", "成交金額尚未登記——上方為實測自主處理量；待結案時填入成交金額後，這裡顯示實際守住金額。"));
     }
   };
 
