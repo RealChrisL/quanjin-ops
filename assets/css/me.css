@@ -1,0 +1,45 @@
+/* 同事「我的案件」行動版 — 沿用戰情室朱墨印譜，但為手機重排。自成一頁，不載入 admin styles。 */
+:root{
+  --bg:#ECE6D8; --panel:#F6F1E4; --panel2:#EDE6D5;
+  --ink:#181410; --ink2:#5A5142; --faint:#8C8169;
+  --accent:#C0392B; --gold:#9A7B3F; --ok:#3D6B52; --warn:#A87C1F; --danger:#C0392B;
+  --rule:#D6CDB8; --rule2:#B6A98A; --seal-text:#F6F1E4;
+  --fd:"Noto Serif TC",serif; --fb:"Noto Sans TC",sans-serif; --fm:"IBM Plex Mono",monospace;
+}
+*{box-sizing:border-box;}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webkit-text-size-adjust:100%;}
+
+.me-head{position:sticky;top:0;background:var(--bg);border-bottom:2px solid var(--ink);padding:14px 16px 10px;z-index:2;}
+.me-hrow{display:flex;align-items:center;gap:12px;}
+.me-seal{width:42px;height:42px;flex:0 0 42px;background:var(--accent);color:var(--seal-text);font-family:var(--fd);font-weight:900;display:flex;align-items:center;justify-content:center;font-size:15px;letter-spacing:1px;}
+.me-htext{flex:1;min-width:0;}
+.me-title{font-family:var(--fd);font-weight:900;font-size:20px;line-height:1.2;}
+.me-who{font-size:12.5px;color:var(--ink2);margin-top:2px;}
+.me-count{font-family:var(--fm);font-size:12.5px;color:var(--ink2);margin-top:9px;}
+
+.me-list{padding:12px 16px 48px;max-width:640px;margin:0 auto;}
+.me-empty{color:var(--faint);font-size:14px;text-align:center;padding:48px 16px;line-height:1.8;}
+
+.me-card{background:var(--panel);border:1.5px solid var(--rule2);border-left:4px solid var(--ink);padding:12px 14px;margin-bottom:12px;}
+.me-l1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+.me-name{font-size:16px;font-weight:700;color:var(--ink);}
+.me-amt{font-family:var(--fm);font-size:14px;font-weight:600;color:var(--ok);white-space:nowrap;}
+.me-l2{display:flex;gap:10px;align-items:baseline;margin-top:4px;font-size:13px;color:var(--ink2);}
+.me-type{font-weight:500;}
+.me-wait{color:var(--faint);font-size:12px;}
+
+.me-acts{display:flex;gap:8px;margin-top:12px;}
+.me-btn{flex:1;padding:12px 8px;font-family:var(--fb);font-size:15px;font-weight:700;border:1.5px solid var(--ink);background:var(--panel);color:var(--ink);cursor:pointer;-webkit-appearance:none;border-radius:0;}
+.me-btn:active{transform:translateY(1px);}
+.me-accent{background:var(--accent);color:var(--seal-text);border-color:var(--accent);}
+.me-ok{background:var(--ok);color:#fff;border-color:var(--ok);}
+.me-ink{background:var(--panel);color:var(--ink);}
+
+.me-chooser{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px;padding-top:11px;border-top:1px dashed var(--rule2);}
+.me-ch-q{font-size:13px;color:var(--ink2);width:100%;margin-bottom:2px;}
+.me-chooser .me-btn{flex:1;min-width:120px;}
+
+.me-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--seal-text);padding:12px 20px;font-size:14px;font-weight:600;z-index:9;max-width:90%;text-align:center;box-shadow:0 2px 0 0 rgba(0,0,0,.25);}
+.me-toast.ok{background:var(--ok);}
+.me-toast.danger{background:var(--danger);}
+.me-toast.warn{background:var(--warn);}
