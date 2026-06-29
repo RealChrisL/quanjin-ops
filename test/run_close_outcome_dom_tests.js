@@ -421,6 +421,29 @@ function run() {
         crHost.querySelector(".rv-closer") && crHost.querySelector(".rv-closer").textContent);
   check("C6b no provenance → no external-count banner", !crHost.querySelector(".rm-extflag"));
 
+  // (c) SERVER-SOURCED via cases[] — and the headline regression: closedRecs EMPTY but
+  // the server endpoint has cases → board MUST still render (the empty-board bug).
+  var ym = (function () { var n = new Date(); return n.getFullYear() + "-" + ("0" + (n.getMonth() + 1)).slice(-2); })();
+  var emptyState = { review: { closedRecs: [] } };  // browser fetched NOTHING
+  QJ.closeReview = { ok: true, cases: [
+    { id: "sIn",  name: "伺服器甲", caseType: "遺囑", closedDate: ym + "-15", amount: 30000, external: false, closer: "戰情室", source: "dashboard" },
+    { id: "sExt", name: "伺服器乙", caseType: "買賣", closedDate: ym + "-20", amount: 0,     external: true,  closer: "",       source: "external"  }
+  ] };
+  QJ.render.renderCloseReview(emptyState);
+  var srows = crHost.querySelectorAll(".review-row");
+  check("C6c closedRecs EMPTY but cases present → board STILL renders (the bug fix)",
+        srows.length === 2, srows.length);
+  check("C6c rows come from server cases (by data-id)",
+        !!crHost.querySelector('[data-id="sExt"]') && !!crHost.querySelector('[data-id="sIn"]'));
+  check("C6c 系統外 floated to top from cases", srows[0] && srows[0].classList.contains("is-external"));
+  check("C6c meta count from cases (本月共 2)",
+        crHost.querySelector(".rm-total") && crHost.querySelector(".rm-total").textContent.indexOf("本月共 2 件") >= 0,
+        crHost.querySelector(".rm-total") && crHost.querySelector(".rm-total").textContent);
+  // (d) cases preferred over closedRecs when BOTH present (server is authoritative)
+  QJ.render.renderCloseReview(crState);  // crState.closedRecs has rIn/rExt; cases still has sIn/sExt
+  check("C6d cases win over closedRecs (server rows present, browser rows absent)",
+        !!crHost.querySelector('[data-id="sExt"]') && !crHost.querySelector('[data-id="rExt"]'));
+
   /* ---- CASE 7: write-proxy liveness banner (setWriteStatus) ---- */
   console.log("CASE 7 — 寫入代理存活指示燈");
   check("C7 setWriteStatus exported on QJ.render", typeof QJ.render.setWriteStatus === "function");
