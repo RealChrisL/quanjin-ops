@@ -99,7 +99,7 @@
     if (!id) return;
 
     if (cta === "amount" || cta === "close") {
-      var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls") || btn.closest(".dl-row") || btn.closest(".nudge-row"))) || btn.parentNode;
+      var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls") || btn.closest(".dl-row") || btn.closest(".nudge-row") || btn.closest(".review-row"))) || btn.parentNode;
       // 結案 → forced-outcome 選擇器（成交填金額／未成交一鍵）；補金額 → 原數字輸入
       if (cta === "close") { QJ.render.openCloseOutcome && QJ.render.openCloseOutcome(host, id); }
       else { QJ.render.openInlineAmount && QJ.render.openInlineAmount(host, id, cta); }

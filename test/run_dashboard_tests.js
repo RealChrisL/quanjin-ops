@@ -387,6 +387,33 @@ function test_honestRecsPanel() {
         Array.isArray(em.honestRecs) && em.honestRecs.length === 0, em.honestRecs);
 }
 
+/* ===========================================================================
+ * TASK 2I — 結案審核 (review.closedRecs = ALL this-month closes)
+ * ======================================================================== */
+function test_closeReview() {
+  console.log("TASK 2I — 結案審核 (closedRecs: all this-month closes)");
+  var now = new Date();
+  function md(day) { return new Date(now.getFullYear(), now.getMonth(), day); }
+  var lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+  var won  = R({ 委託人: "甲", 狀態: QJ.STATUS.DONE, 結案日期: md(20), 成交金額: 50000 });
+  var lost = R({ 委託人: "乙", 狀態: QJ.STATUS.DONE, 結案日期: md(12), 成交金額: 0 });
+  var pend = R({ 委託人: "丙", 狀態: QJ.STATUS.DONE, 結案日期: md(5),  成交金額: null });
+  var lm   = R({ 委託人: "丁", 狀態: QJ.STATUS.DONE, 結案日期: lastMonth, 成交金額: 30000 });
+  var op   = R({ 委託人: "戊", 狀態: QJ.STATUS.OPEN });
+  var rv = QJ.logic.analyze([won, lost, pend, lm, op], {}).review;
+  var names = (rv.closedRecs || []).map(function (r) { return r.委託人; });
+  check("CR closedRecs = all 3 in-month closes (成交+未成交+待補)",
+        rv.closedRecs && rv.closedRecs.length === 3, names);
+  check("CR includes 甲(成交)/乙(未成交)/丙(待補)",
+        names.indexOf("甲") !== -1 && names.indexOf("乙") !== -1 && names.indexOf("丙") !== -1, names);
+  check("CR excludes 上月結案/未結案", names.indexOf("丁") === -1 && names.indexOf("戊") === -1, names);
+  check("CR sorted by 結案日期 desc (甲20→乙12→丙5)",
+        names[0] === "甲" && names[1] === "乙" && names[2] === "丙", names);
+  var em = QJ.logic.analyze([], {}).review;
+  check("CR empty input → closedRecs === []",
+        Array.isArray(em.closedRecs) && em.closedRecs.length === 0, em.closedRecs);
+}
+
 /* ---- run ---- */
 console.log("=== quanjin-ops dashboard test harness ===");
 test_analyze();
@@ -397,6 +424,7 @@ test_staffLoader();
 test_avgRespWindow();
 test_dealOutcomeSplit();
 test_honestRecsPanel();
+test_closeReview();
 console.log("");
 if (FAILS.length) {
   console.log("FAILED: " + FAILS.length + " — " + safe(FAILS));

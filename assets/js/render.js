@@ -652,6 +652,46 @@
   /* =============================================================================
    * 公開 API
    * ========================================================================== */
+  /* 結案審核：本月「所有」已結案逐筆複核（含未成交/待補——審核面要看得到才能修正）。
+   * 與「成交紀錄」帳本不同：帳本只肯定成交；這裡是監督——謝代書核對每筆結果、修正同仁在系統外
+   * 誤結的案子。每列「修正結果」開既有結果選擇器（openCloseOutcome，強制成交/未成交）。
+   * 「結案者」欄為第二階段（需 proxy 端點讀伺服器稽核）；v1 先顯示承辦人。 */
+  function renderCloseReview(state) {
+    var host = $("close-review"); if (!host) return;
+    clear(host);
+    var recs = (state.review && state.review.closedRecs) || [];
+    if (!recs.length) {
+      host.appendChild(el("p", "review-empty", "本月尚無結案案件。"));
+      return;
+    }
+    host.appendChild(el("div", "review-meta",
+      "本月共 " + recs.length + " 件結案，依結案日期排列，可逐筆核對與修正結果。"));
+    var ul = el("ul", "review-list");
+    recs.forEach(function (r) {
+      var li = el("li", "review-row"); li.setAttribute("data-id", r.id || "");
+      var a = r.成交金額;
+      var n = (a == null || a === "") ? null : Number(a);
+      var badge;
+      if (n != null && n > 0) badge = el("span", "rv-out rv-won", "成交 " + fmtMoney(n));
+      else if (n === 0) badge = el("span", "rv-out rv-lost", "未成交");
+      else badge = el("span", "rv-out rv-pend", "結果待補");
+      var l1 = el("div", "rv-l1");
+      l1.appendChild(el("span", "rv-name", clientLabel(r.委託人)));
+      l1.appendChild(badge);
+      li.appendChild(l1);
+      var cd = (r.結案日期 instanceof Date) ? r.結案日期 : null;
+      var l2 = el("div", "rv-l2");
+      l2.appendChild(el("span", "rv-meta",
+        (r.案件類型 || "未分類")
+        + (cd ? "・" + (cd.getMonth() + 1) + "/" + cd.getDate() + " 結案" : "")
+        + "・" + (displayOwner(r.承辦人) || "未指派")));
+      l2.appendChild(ctaButton("修正結果", "close", r.id, "rv-fix"));
+      li.appendChild(l2);
+      ul.appendChild(li);
+    });
+    host.appendChild(ul);
+  }
+
   R.renderApp = function (state) {
     if (!state) return;
     R._last = state;
@@ -666,6 +706,7 @@
     renderQueue(state);
     renderDealTrack(state);
     renderTeam(state);
+    renderCloseReview(state);
     // 圖譜由 QJ.charts.renderCharts(state) 在 app.js 中觸發
   };
 
@@ -681,6 +722,7 @@
     renderCtaActions(nextState);
     renderDealTrack(nextState);
     renderTeam(nextState);
+    renderCloseReview(nextState);
     renderSlicers(nextState);
 
     if (!table || !table.tBodies.length) { renderQueue(nextState); return; }

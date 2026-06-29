@@ -289,6 +289,7 @@
     var monthClosedCount = 0, honestCount = 0, honestAmount = 0;
     var dealLost = 0, dealPending = 0;  // 成交金額===0 → 未成交；空白 → 待補（計數用，不顯示缺口）
     var honestRecs = [];  // 成交紀錄面板：本月成交（金額>0）逐筆，下方依結案日期 desc 排序
+    var closedRecs = [];  // 結案審核：本月「所有」已結案（含未成交/待補），供謝代書逐筆複核
     var closeTypeMap = {}, closeOwnerMap = {};
     for (var mi = 0; mi < recs.length; mi++) {
       var mr = recs[mi];
@@ -296,6 +297,7 @@
       var mcd = toDate(mr.結案日期);
       if (!mcd || !inCurrentMonth(mcd, now)) continue;
       monthClosedCount += 1;
+      closedRecs.push(mr);
       var mty = toStr(mr.案件類型) || "未分類";
       closeTypeMap[mty] = (closeTypeMap[mty] || 0) + 1;
       var mow = (typeof QJ !== "undefined" && QJ.ownerName ? QJ.ownerName(toStr(mr.承辦人)) : toStr(mr.承辦人)) || "未指派";
@@ -307,6 +309,10 @@
     }
     // 成交紀錄依結案日期 desc（最近成交在上）——render 不再排序，由此處保證可測。
     honestRecs.sort(function (a, b) {
+      var ta = toDate(a.結案日期), tb = toDate(b.結案日期);
+      return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
+    });
+    closedRecs.sort(function (a, b) {       // 結案審核同樣依結案日期 desc
       var ta = toDate(a.結案日期), tb = toDate(b.結案日期);
       return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
     });
@@ -438,6 +444,7 @@
       kpis: kpis,
       queue: queue,
       team: team,
+      review: { closedRecs: closedRecs },   // 結案審核：本月所有已結案（依結案日期 desc）
       deal: {
         monthClosedCount: monthClosedCount,
         daysElapsed: now.getDate(),
