@@ -197,6 +197,21 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 .conn-status[data-online="true"]::before { background:var(--ok); }
 .conn-status[data-online="error"] { color:var(--danger); border-color:var(--danger); }
 .conn-status[data-online="error"]::before { background:var(--danger); }
+/* 寫入代理存活：寫入全走 proxy，隧道掛了讀取仍正常但寫入會無聲失敗 → 明確標示 */
+.write-status {
+  font-size:12.5px; font-weight:700;
+  padding:3px 10px;
+  border:1.5px solid var(--rule2); color:var(--faint);
+  display:inline-flex; align-items:center; gap:7px;
+}
+.write-status::before {
+  content:""; width:8px; height:8px; background:var(--faint);
+  border-radius:var(--radius);
+}
+.write-status[data-ok="true"] { color:var(--ok); border-color:var(--ok); }
+.write-status[data-ok="true"]::before { background:var(--ok); }
+.write-status[data-ok="false"] { color:var(--danger); border-color:var(--danger); }
+.write-status[data-ok="false"]::before { background:var(--danger); }
 .processed-count { font-family:var(--fm); font-size:12px; color:var(--ink2); }
 
 .btn-ink {

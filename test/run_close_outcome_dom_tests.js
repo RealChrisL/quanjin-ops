@@ -421,6 +421,21 @@ function run() {
         crHost.querySelector(".rv-closer") && crHost.querySelector(".rv-closer").textContent);
   check("C6b no provenance → no external-count banner", !crHost.querySelector(".rm-extflag"));
 
+  /* ---- CASE 7: write-proxy liveness banner (setWriteStatus) ---- */
+  console.log("CASE 7 — 寫入代理存活指示燈");
+  check("C7 setWriteStatus exported on QJ.render", typeof QJ.render.setWriteStatus === "function");
+  var wsHost = DOC.createElement("span");
+  wsHost.hidden = true;
+  DOC._byId["write-status"] = wsHost;
+  QJ.render.setWriteStatus("true", "寫入正常");
+  check("C7 ok → data-ok=true + text + unhidden",
+        wsHost.getAttribute("data-ok") === "true" && wsHost.textContent === "寫入正常" && wsHost.hidden === false);
+  QJ.render.setWriteStatus("false", "⚠ 無法寫入");
+  check("C7 down → data-ok=false + warn text",
+        wsHost.getAttribute("data-ok") === "false" && wsHost.textContent.indexOf("無法寫入") >= 0);
+  QJ.render.setWriteStatus("off", "未設定寫入");
+  check("C7 unconfigured → data-ok=off", wsHost.getAttribute("data-ok") === "off");
+
   /* ---- done ---- */
   console.log("");
   if (FAILS.length) { console.log("FAILED: " + FAILS.length + " — " + safe(FAILS)); process.exit(1); }

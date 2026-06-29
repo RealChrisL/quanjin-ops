@@ -981,6 +981,16 @@
     n.setAttribute("data-online", v);
   };
 
+  /* ---------- setWriteStatus (寫入代理存活) ---------- */
+  // state: "true"=可寫入 / "false"=不可達 / "off"=未設定。寫入全走 proxy，隧道掛了
+  // 讀取仍正常但寫入會無聲失敗，所以這個指示燈獨立於資料同步狀態。
+  R.setWriteStatus = function (state, text) {
+    var n = $("write-status"); if (!n) return;
+    n.hidden = false;
+    n.setAttribute("data-ok", state || "off");
+    if (text != null) n.textContent = text;
+  };
+
   /* ---------- setProcessedCount ---------- */
   R.setProcessedCount = function (n) {
     var node = $("processed-count"); if (!node) return;

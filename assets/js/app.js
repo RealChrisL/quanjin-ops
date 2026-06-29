@@ -69,10 +69,25 @@
     });
   }
 
+  /* 寫入代理存活：戰情室的寫入全走 proxy；隧道／服務掛了時，讀取仍正常（瀏覽器直連 Airtable）
+     但每筆結案／修正會無聲失敗。獨立探測 /health（免授權），明確標示「可寫入 / 無法寫入」。 */
+  function refreshProxyHealth() {
+    if (!(QJ.render && QJ.render.setWriteStatus)) return;
+    if (!(QJ.proxyConfigured && QJ.proxyConfigured())) {
+      QJ.render.setWriteStatus("off", "未設定寫入");
+      return;
+    }
+    if (!QJ.airtable.fetchHealth) return;
+    QJ.airtable.fetchHealth().then(function (ok) {
+      QJ.render.setWriteStatus(ok ? "true" : "false", ok ? "寫入正常" : "⚠ 無法寫入");
+    });
+  }
+
   function startPolling() {
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(function () {
       if (document.hidden) return;
+      refreshProxyHealth(); // 存活探測獨立於資料輪詢——即使正在輸入也要持續顯示寫入是否可達
       if (document.querySelector(".inline-edit")) return; // 正在輸入成交金額／結案，勿讓輪詢重繪洗掉未送出的輸入
       refresh(true);
     }, (S.pollSeconds || 25) * 1000);
@@ -102,6 +117,7 @@
       bumpProcessed(-1);
       log(label, false, "寫回失敗（" + (e && e.status || "網路") + "）已回滾");
       toast("寫回失敗（" + (e && e.status || "網路") + "）。已還原這筆，請重試。", "danger");
+      refreshProxyHealth(); // 寫入失敗 → 立即重探存活，讓指示燈反映「無法寫入」
     });
   }
 
@@ -238,7 +254,7 @@
       return refresh(false);
     }).then(function () {
       startPolling();
-      refreshStats(); refreshCloseReview();
+      refreshStats(); refreshCloseReview(); refreshProxyHealth();
       if (!state.statsTimer) state.statsTimer = setInterval(function () { refreshStats(); refreshCloseReview(); }, 120000);
       state.booting = false;
     }).catch(function (e) {

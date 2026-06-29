@@ -499,6 +499,15 @@
    *      內部同仁名，無客戶 PII，需授權）。失敗回 null → 面板降級為無「結案者」欄。 ---- */
   function fetchCloseReview() { return _proxyGet("/close-review"); }
 
+  /* ---- 寫入代理存活：GET /health（免授權，純存活探測）。回 true=可寫入 / false=不可達。 ---- */
+  function fetchHealth() {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/health";
+    if (!url || url === "/health") { return Promise.resolve(false); }
+    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
+      .then(function (r) { return r.ok; })
+      .catch(function () { return false; });
+  }
+
   /* ---- 開機時把先前的 fieldMap 載入記憶體（detectSchema 會覆寫）---- */
   QJ.airtable = {
     // 記憶體欄位對應（detectSchema 後填入；clear() 會清空）
@@ -511,6 +520,7 @@
     fetchStats: fetchStats,
     fetchStaff: fetchStaff,
     fetchCloseReview: fetchCloseReview,
+    fetchHealth: fetchHealth,
     _normalize: _normalize,
     // 對外曝露 reconcile（logic.js 合約也定義同名，但 raw→date 取最新邏輯落在此）
     reconcileLastInteraction: reconcileLastInteraction
