@@ -561,48 +561,6 @@
     return box;
   }
 
-  /* 「填結果」nudge：把未填結果／全未成交的結案列成可點清單，每筆按鈕直接開結果選擇器
-   * （openCloseOutcome，沿用既有強制二元）。框架＝「業績才算得進去」（公平感，非責備）。 */
-  function renderNudgeList(recs, ctaLabel, ctaStyle, host) {
-    if (!recs || !recs.length) return;
-    var ul = el("ul", "nudge-list");
-    recs.slice(0, 4).forEach(function (rec) {
-      var li = el("li", "nudge-row");
-      var nameStr = clientLabel(rec.委託人);
-      if (rec.案件類型) nameStr += "｜" + rec.案件類型;
-      li.appendChild(el("span", "nudge-name", nameStr));
-      li.appendChild(ctaButton(ctaLabel, "close", rec.id, ctaStyle));
-      ul.appendChild(li);
-    });
-    if (recs.length > 4) {
-      ul.appendChild(el("li", "nudge-more", "還有 " + (recs.length - 4) + " 件，有空再慢慢補就好"));
-    }
-    host.appendChild(ul);
-  }
-
-  function renderDealNudge(d, host) {
-    var allLost = d.monthClosedCount > 1 && d.honestCount === 0 &&
-                  d.pendingCount === 0 && d.lostCount === d.monthClosedCount;
-    var hasPending = d.pendingCount > 0;
-    if (!allLost && !hasPending) return;  // 有成交即靜默——不讓面板變成被忽略的背景雜訊
-
-    var nudge = el("div", "deal-nudge");
-    if (allLost) {
-      nudge.appendChild(el("div", "nudge-head",
-        "本月結案目前都記為未成交 — 裡面有談成的嗎？"));
-      nudge.appendChild(el("div", "nudge-sub",
-        "有談成的補一下金額，您的辛苦才不會白費；真的沒成的，略過就好，不用急。"));
-      renderNudgeList(d.lostRecs, "登記", "nudge-btn", nudge);
-    } else {
-      nudge.appendChild(el("div", "nudge-head",
-        "有幾件結案還沒登記結果"));
-      nudge.appendChild(el("div", "nudge-sub",
-        "成交或未成交，有空點一下就好 🙂"));
-      renderNudgeList(d.pendingRecs, "登記", "nudge-btn", nudge);
-    }
-    host.appendChild(nudge);
-  }
-
   function renderDealTrack(state) {
     var host = $("deal-track"); if (!host) return;
     clear(host);
@@ -625,7 +583,6 @@
       if (d.honestCount > 0) parts.push("成交 " + d.honestCount + " 件（" + fmtMoney(d.honestAmount) + "）");
       if (d.lostCount > 0) parts.push("未成交 " + d.lostCount + " 件");
       if (parts.length) host.appendChild(el("div", "deal-target", "其中：" + parts.join("・")));
-      renderDealNudge(d, host);
     }
 
     host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));
