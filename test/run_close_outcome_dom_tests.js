@@ -386,8 +386,8 @@ function run() {
 
   // (a) UNIFORM list — no 系統外 chip / banner / hint / vermilion, no external-first ordering
   QJ.closeReview = { ok: true, cases: [
-    { id: "sExt", name: "外部客", caseType: "買賣", closedDate: ym + "-20", amount: 0,     external: true,  closer: "",     source: "external"  },
-    { id: "sIn",  name: "系統客", caseType: "遺囑", closedDate: ym + "-25", amount: 30000, external: false, closer: "戰情室", source: "dashboard" }
+    { id: "sExt", name: "外部客", caseType: "買賣", closedDate: ym + "-20", amount: 0,     owner: "",       external: true,  closer: "",     source: "external"  },
+    { id: "sIn",  name: "系統客", caseType: "遺囑", closedDate: ym + "-25", amount: 30000, owner: "黃玲智", external: false, closer: "戰情室", source: "dashboard" }
   ] };
   QJ.render.renderCloseReview({ review: { closedRecs: [] } });
   var rows = crHost.querySelectorAll(".review-row");
@@ -403,6 +403,9 @@ function run() {
   check("C6a outcome badges (成交 / 未成交) + 修正結果 button",
         !!crHost.querySelector(".rv-won") && !!crHost.querySelector(".rv-lost") &&
         !!crHost.querySelector('[data-cta="close"]'));
+  check("C6a delegatee shown when assigned (承辦：黃玲智), absent when none",
+        crHost.querySelector('[data-id="sIn"]').textContent.indexOf("承辦：黃玲智") >= 0 &&
+        crHost.querySelector('[data-id="sExt"]').textContent.indexOf("承辦") < 0);
 
   // (b) the headline regression: closedRecs EMPTY but server cases present → STILL renders
   QJ.render.renderCloseReview({ review: { closedRecs: [] } });

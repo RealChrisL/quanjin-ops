@@ -673,7 +673,8 @@
         rows.push({
           id: c.id, name: c.name || "?", caseType: c.caseType || "",
           mo: +p[1] || null, day: +p[2] || null,
-          amount: (typeof c.amount === "number") ? c.amount : null
+          amount: (typeof c.amount === "number") ? c.amount : null,
+          owner: c.owner || ""
         });
       });
     } else {
@@ -684,7 +685,8 @@
         rows.push({
           id: r.id, name: clientLabel(r.委託人), caseType: r.案件類型 || "",
           mo: cd ? cd.getMonth() + 1 : null, day: cd ? cd.getDate() : null,
-          amount: (a == null || a === "") ? null : Number(a)
+          amount: (a == null || a === "") ? null : Number(a),
+          owner: displayOwner(r.承辦人) || ""
         });
       });
     }
@@ -715,7 +717,9 @@
 
       var l2 = el("div", "rv-l2");
       l2.appendChild(el("span", "rv-meta",
-        (x.caseType || "未分類") + (x.mo ? "・" + x.mo + "/" + x.day + " 結案" : "")));
+        (x.caseType || "未分類")
+        + (x.mo ? "・" + x.mo + "/" + x.day + " 結案" : "")
+        + (x.owner ? "・承辦：" + x.owner : "")));
       l2.appendChild(ctaButton("修正結果", "close", x.id, "rv-fix"));
       li.appendChild(l2);
       ul.appendChild(li);
