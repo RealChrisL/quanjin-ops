@@ -476,34 +476,28 @@
     });
   }
 
-  /* ---- 24/7 代理戰績：GET /stats（唯讀彙總，無 PII，免授權如 /health）。失敗回 null ---- */
-  function fetchStats() {
-    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/stats";
-    if (!url || url === "/stats") { return Promise.resolve(null); }
-    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .catch(function () { return null; });
+  /* 唯讀資料端點共用 GET：帶 Bearer 代理密鑰（這些端點現在需授權，內含內部訊號）。
+     401／網路失敗 → 回 null，各呼叫端自行降級。 */
+  function _proxyGet(pathSeg) {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + pathSeg;
+    if (!url || url === pathSeg) { return Promise.resolve(null); }
+    return fetch(url, { headers: {
+      "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""),
+      "ngrok-skip-browser-warning": "1"
+    } }).then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
   }
 
-  /* ---- 同仁名冊：GET /staff（唯讀，內部同仁 id，無 PII，免授權如 /health）。
+  /* ---- 24/7 代理戰績：GET /stats（唯讀彙總，需授權）。失敗回 null ---- */
+  function fetchStats() { return _proxyGet("/stats"); }
+
+  /* ---- 同仁名冊：GET /staff（唯讀，內部同仁 id，需授權）。
    *      單一真實來源＝bot config.json；失敗回 null → app.js 沿用硬編後備名冊。 ---- */
-  function fetchStaff() {
-    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/staff";
-    if (!url || url === "/staff") { return Promise.resolve(null); }
-    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .catch(function () { return null; });
-  }
+  function fetchStaff() { return _proxyGet("/staff"); }
 
   /* ---- 結案來源稽核：GET /close-review（唯讀，每筆結案標記系統內／系統外＋結案者；
-   *      內部同仁名，無客戶 PII，免授權如 /staff）。失敗回 null → 面板降級為無「結案者」欄。 ---- */
-  function fetchCloseReview() {
-    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/close-review";
-    if (!url || url === "/close-review") { return Promise.resolve(null); }
-    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .catch(function () { return null; });
-  }
+   *      內部同仁名，無客戶 PII，需授權）。失敗回 null → 面板降級為無「結案者」欄。 ---- */
+  function fetchCloseReview() { return _proxyGet("/close-review"); }
 
   /* ---- 開機時把先前的 fieldMap 載入記憶體（detectSchema 會覆寫）---- */
   QJ.airtable = {
