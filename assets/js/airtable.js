@@ -495,6 +495,16 @@
       .catch(function () { return null; });
   }
 
+  /* ---- 結案來源稽核：GET /close-review（唯讀，每筆結案標記系統內／系統外＋結案者；
+   *      內部同仁名，無客戶 PII，免授權如 /staff）。失敗回 null → 面板降級為無「結案者」欄。 ---- */
+  function fetchCloseReview() {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/close-review";
+    if (!url || url === "/close-review") { return Promise.resolve(null); }
+    return fetch(url, { headers: { "ngrok-skip-browser-warning": "1" } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .catch(function () { return null; });
+  }
+
   /* ---- 開機時把先前的 fieldMap 載入記憶體（detectSchema 會覆寫）---- */
   QJ.airtable = {
     // 記憶體欄位對應（detectSchema 後填入；clear() 會清空）
@@ -506,6 +516,7 @@
     cta: cta,
     fetchStats: fetchStats,
     fetchStaff: fetchStaff,
+    fetchCloseReview: fetchCloseReview,
     _normalize: _normalize,
     // 對外曝露 reconcile（logic.js 合約也定義同名，但 raw→date 取最新邏輯落在此）
     reconcileLastInteraction: reconcileLastInteraction

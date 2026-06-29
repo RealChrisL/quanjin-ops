@@ -57,6 +57,18 @@
     });
   }
 
+  /* 結案來源稽核：哪些結案走系統、哪些是同仁直接在 Airtable 結的（GET /close-review）。
+     獨立於 25 秒輪詢；失敗或未回應 → QJ.closeReview 留空，面板降級為無「結案者」欄。 */
+  function refreshCloseReview() {
+    if (!QJ.airtable.fetchCloseReview) return;
+    QJ.airtable.fetchCloseReview().then(function (cr) {
+      if (cr && cr.ok) {
+        QJ.closeReview = cr;
+        if (state.analysis && QJ.render && QJ.render.renderCloseReview) QJ.render.renderCloseReview(state);
+      }
+    });
+  }
+
   function startPolling() {
     if (state.pollTimer) clearInterval(state.pollTimer);
     state.pollTimer = setInterval(function () {
@@ -83,6 +95,7 @@
       log(label, true, "已透過後端安全寫入（含鎖／通知／稽核）");
       toast("✓ 已安全寫入", "ok");
       refresh(true); // 以伺服器真相重抓校正
+      refreshCloseReview(); // 修正結果會改變「系統內／系統外」歸屬，重抓來源稽核
     }).catch(function (e) {
       replaceRec(id, snapshot);           // 失敗回滾
       analyzeAndRender(true);
@@ -225,8 +238,8 @@
       return refresh(false);
     }).then(function () {
       startPolling();
-      refreshStats();
-      if (!state.statsTimer) state.statsTimer = setInterval(refreshStats, 120000);
+      refreshStats(); refreshCloseReview();
+      if (!state.statsTimer) state.statsTimer = setInterval(function () { refreshStats(); refreshCloseReview(); }, 120000);
       state.booting = false;
     }).catch(function (e) {
       state.booting = false;

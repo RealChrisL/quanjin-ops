@@ -653,9 +653,10 @@
    * 公開 API
    * ========================================================================== */
   /* 結案審核：本月「所有」已結案逐筆複核（含未成交/待補——審核面要看得到才能修正）。
-   * 與「成交紀錄」帳本不同：帳本只肯定成交；這裡是監督——謝代書核對每筆結果、修正同仁在系統外
-   * 誤結的案子。每列「修正結果」開既有結果選擇器（openCloseOutcome，強制成交/未成交）。
-   * 「結案者」欄為第二階段（需 proxy 端點讀伺服器稽核）；v1 先顯示承辦人。 */
+   * 與「成交紀錄」帳本不同：帳本只肯定成交；這裡是監督——謝代書核對每筆結果、補正同仁在系統外
+   * 結的案子。每列「修正結果」開既有結果選擇器（openCloseOutcome，A4 已保留原結案日期）。
+   * 「結案者／系統外」來自 GET /close-review（QJ.closeReview.byRecordId，依 recordId 對應）；
+   * 端點未回應時降級為承辦人欄。系統外案件置頂——那是金額多半沒登記、最需要核對的。 */
   function renderCloseReview(state) {
     var host = $("close-review"); if (!host) return;
     clear(host);
@@ -664,27 +665,59 @@
       host.appendChild(el("p", "review-empty", "本月尚無結案案件。"));
       return;
     }
-    host.appendChild(el("div", "review-meta",
-      "本月共 " + recs.length + " 件結案，依結案日期排列，可逐筆核對與修正結果。"));
+    var prov = (QJ.closeReview && QJ.closeReview.byRecordId) || {};
+    var haveProv = false; for (var k in prov) { if (prov.hasOwnProperty(k)) { haveProv = true; break; } }
+
+    // 系統外（無系統稽核）置頂——最需要核對；其餘維持結案日期 desc（logic.js 已排序）。
+    var ext = [], sys = [];
+    recs.forEach(function (r) { ((prov[r.id] && prov[r.id].external) ? ext : sys).push(r); });
+    var ordered = ext.concat(sys);
+
+    var meta = el("div", "review-meta");
+    meta.appendChild(el("span", "rm-total", "本月共 " + recs.length + " 件結案"));
+    if (haveProv && ext.length) {
+      meta.appendChild(el("span", "rm-extflag", ext.length + " 件系統外結案待核對"));
+    } else if (haveProv) {
+      meta.appendChild(el("span", "rm-clean", "本月結案均已登記完整"));
+    }
+    host.appendChild(meta);
+    if (haveProv && ext.length) {
+      host.appendChild(el("p", "review-hint",
+        "「系統外結案」是同仁未透過系統、直接在後台將案件結案的紀錄，成交金額可能尚未登記。請逐筆點「修正結果」確認並補上實際金額。"));
+    }
+
     var ul = el("ul", "review-list");
-    recs.forEach(function (r) {
-      var li = el("li", "review-row"); li.setAttribute("data-id", r.id || "");
+    ordered.forEach(function (r) {
+      var p = prov[r.id] || null;
+      var external = !!(p && p.external);
+      var li = el("li", "review-row" + (external ? " is-external" : ""));
+      li.setAttribute("data-id", r.id || "");
+
       var a = r.成交金額;
       var n = (a == null || a === "") ? null : Number(a);
       var badge;
       if (n != null && n > 0) badge = el("span", "rv-out rv-won", "成交 " + fmtMoney(n));
       else if (n === 0) badge = el("span", "rv-out rv-lost", "未成交");
       else badge = el("span", "rv-out rv-pend", "結果待補");
+
       var l1 = el("div", "rv-l1");
       l1.appendChild(el("span", "rv-name", clientLabel(r.委託人)));
       l1.appendChild(badge);
+      if (external) l1.appendChild(el("span", "rv-srcflag", "系統外"));
       li.appendChild(l1);
+
       var cd = (r.結案日期 instanceof Date) ? r.結案日期 : null;
+      // 系統外 → 標來源（非人名）；系統內 → 結案者名（戰情室／同仁）；無稽核 → 退回承辦人。
+      var closerTxt;
+      if (external) closerTxt = "來源：後台直接結案";
+      else if (p && p.closer) closerTxt = "結案者：" + p.closer;
+      else closerTxt = "承辦：" + (displayOwner(r.承辦人) || "未指派");
+
       var l2 = el("div", "rv-l2");
       l2.appendChild(el("span", "rv-meta",
         (r.案件類型 || "未分類")
-        + (cd ? "・" + (cd.getMonth() + 1) + "/" + cd.getDate() + " 結案" : "")
-        + "・" + (displayOwner(r.承辦人) || "未指派")));
+        + (cd ? "・" + (cd.getMonth() + 1) + "/" + cd.getDate() + " 結案" : "")));
+      l2.appendChild(el("span", "rv-closer" + (external ? " is-external" : ""), closerTxt));
       l2.appendChild(ctaButton("修正結果", "close", r.id, "rv-fix"));
       li.appendChild(l2);
       ul.appendChild(li);
@@ -953,6 +986,10 @@
     var node = $("processed-count"); if (!node) return;
     node.textContent = "本次已處理 " + (n || 0) + " 項";
   };
+
+  // 對外曝露結案審核重繪（app.js 的 refreshCloseReview 取得 /close-review 後直接點繪此面板，
+  // 不必等下一輪 25 秒紀錄輪詢）。renderApp/diffUpdate 內部仍呼叫同一個 function。
+  R.renderCloseReview = renderCloseReview;
 
   window.QJ.render = R;
 })();

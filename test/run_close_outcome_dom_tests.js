@@ -370,6 +370,57 @@ function run() {
         !!td.querySelector('[data-cta="close-confirm"]') && !!td.querySelector('[data-cta="close-lost"]'));
   check("C5 status-select reverted to 跟進中 (not left on 已完成)", sel.value === QJ.STATUS.OPEN, sel.value);
 
+  /* ---- CASE 6: 結案審核 board — 系統外 column + ordering + graceful degradation ---- */
+  console.log("CASE 6 — 結案審核 板：系統外欄、置頂排序、降級");
+  // P1-1: the targeted refresh (app.js refreshCloseReview) calls QJ.render.renderCloseReview —
+  // it MUST be exported, else the post-write/120s refresh is dead.
+  check("C6 renderCloseReview exported on QJ.render", typeof QJ.render.renderCloseReview === "function");
+
+  var crHost = DOC.createElement("div");
+  DOC._byId["close-review"] = crHost;
+  var crState = { review: { closedRecs: [
+    { id: "rIn",  委託人: "系統客", 案件類型: "遺囑", 結案日期: new Date(), 成交金額: 25000, 承辦人: "謝代書" },
+    { id: "rExt", 委託人: "外部客", 案件類型: "遺囑", 結案日期: new Date(), 成交金額: 0,     承辦人: "" },
+  ] } };
+
+  // (a) with provenance: external row flagged + floated to top
+  QJ.closeReview = { ok: true, byRecordId: {
+    rIn:  { external: false, closer: "戰情室", source: "dashboard" },
+    rExt: { external: true,  closer: "",       source: "external"  },
+  } };
+  QJ.render.renderCloseReview(crState);
+  var rows = crHost.querySelectorAll(".review-row");
+  check("C6a two rows rendered", rows.length === 2, rows.length);
+  check("C6a external row carries .is-external", !!crHost.querySelector(".review-row.is-external"));
+  check("C6a 系統外 floated to top (first row is external)",
+        rows[0] && rows[0].classList.contains("is-external"));
+  check("C6a external row shows 系統外 chip",
+        !!(rows[0] && rows[0].querySelector(".rv-srcflag")) &&
+        rows[0].querySelector(".rv-srcflag").textContent === "系統外");
+  check("C6a external closer line is source-framed, not a person",
+        !!(rows[0] && rows[0].querySelector(".rv-closer")) &&
+        rows[0].querySelector(".rv-closer").textContent.indexOf("來源：後台直接結案") >= 0,
+        rows[0] && rows[0].querySelector(".rv-closer") && rows[0].querySelector(".rv-closer").textContent);
+  check("C6a in-band row shows 結案者：戰情室",
+        !!(rows[1] && rows[1].querySelector(".rv-closer")) &&
+        rows[1].querySelector(".rv-closer").textContent.indexOf("結案者：戰情室") >= 0,
+        rows[1] && rows[1].querySelector(".rv-closer") && rows[1].querySelector(".rv-closer").textContent);
+  check("C6a meta banner flags the external count",
+        !!crHost.querySelector(".rm-extflag") &&
+        crHost.querySelector(".rm-extflag").textContent.indexOf("1 件系統外結案待核對") >= 0,
+        crHost.querySelector(".rm-extflag") && crHost.querySelector(".rm-extflag").textContent);
+
+  // (b) degradation: no provenance → no external flag, closer falls back to 承辦, no 系統外 chip
+  QJ.closeReview = null;
+  QJ.render.renderCloseReview(crState);
+  check("C6b no provenance → zero .is-external rows", !crHost.querySelector(".review-row.is-external"));
+  check("C6b no provenance → no 系統外 chip", !crHost.querySelector(".rv-srcflag"));
+  check("C6b no provenance → closer falls back to 承辦",
+        !!crHost.querySelector(".rv-closer") &&
+        crHost.querySelector(".rv-closer").textContent.indexOf("承辦") >= 0,
+        crHost.querySelector(".rv-closer") && crHost.querySelector(".rv-closer").textContent);
+  check("C6b no provenance → no external-count banner", !crHost.querySelector(".rm-extflag"));
+
   /* ---- done ---- */
   console.log("");
   if (FAILS.length) { console.log("FAILED: " + FAILS.length + " — " + safe(FAILS)); process.exit(1); }
