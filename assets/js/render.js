@@ -502,36 +502,6 @@
   /* =============================================================================
    * 貳 · 成交進度欄 #deal-track
    * ========================================================================== */
-  function dealList(title, recs, cls, emptyText, ctaKind) {
-    var box = el("div", "deal-sub " + cls);
-    box.appendChild(el("h4", null, title));
-    if (!recs || !recs.length) {
-      box.appendChild(el("p", "deal-empty", emptyText));
-      return box;
-    }
-    var ul = el("ul");
-    recs.slice(0, 8).forEach(function (rec) {
-      var li = el("li", "dl-row");
-      li.setAttribute("data-id", rec.id || "");
-      var left = el("span", "dl-left");
-      left.appendChild(el("span", "dl-name", clientLabel(rec.委託人)));
-      if (rec.案號) left.appendChild(el("span", "dl-no", rec.案號));
-      li.appendChild(left);
-      var acts = el("span", "dl-actions");
-      if (ctaKind === "close") acts.appendChild(ctaButton("結案", "close", rec.id, "cta-ok", false, TIP_CLOSE));
-      else if (ctaKind === "amount") acts.appendChild(ctaButton("補金額", "amount", rec.id, "cta-accent"));
-      var url = airtableUrl(rec.id);
-      if (url) {
-        var lk = el("a", "cta cta-link", "🔗");
-        lk.setAttribute("href", url); lk.setAttribute("target", "_blank"); lk.setAttribute("rel", "noopener noreferrer");
-        acts.appendChild(lk);
-      }
-      li.appendChild(acts);
-      ul.appendChild(li);
-    });
-    box.appendChild(ul);
-    return box;
-  }
 
   /* 結案分組清單：{label,count}[] → 「名稱 … N 件」行（最多 cap 條，其餘摺疊為「其他 M 件」） */
   function closedList(title, rows, cls, emptyText, cap) {
@@ -561,6 +531,48 @@
     return box;
   }
 
+  /* 成交紀錄：本月成交（金額>0）的唯讀帳本。只呈現「已成交」——肯定而非催促，絕不顯示缺口
+   * （未成交/待補已在上方「其中」行）。空狀態是引導，不是 NT$0 指控。金色合計＝他的業績。 */
+  function renderDealsReview(d, host) {
+    var recs = d.honestRecs || [];
+    var box = el("div", "deal-sub deals-review");
+    var h = el("h4", null, "成交紀錄");
+    h.appendChild(el("span", "dr-scope", "本月（" + ((new Date()).getMonth() + 1) + " 月 1 日起）"));
+    box.appendChild(h);
+    if (!recs.length) {
+      box.appendChild(el("p", "deal-empty",
+        "本月尚無成交紀錄。案件結案並登記成交後，紀錄會顯示在這裡。"));
+      host.appendChild(box); return;
+    }
+    box.appendChild(el("div", "dr-sum", fmtMoney(d.honestAmount)));
+    box.appendChild(el("div", "dr-sum-label", "本月成交合計・共 " + d.honestCount + " 件"));
+    var ul = el("ul", "dr-list");
+    recs.forEach(function (r) {
+      var li = el("li", "dr-row");
+      var l1 = el("div", "dr-l1");
+      l1.appendChild(el("span", "dr-name", clientLabel(r.委託人)));
+      l1.appendChild(el("span", "dr-amt", fmtMoney(r.成交金額)));
+      li.appendChild(l1);
+      var l2 = el("div", "dr-l2");
+      var cd = (r.結案日期 instanceof Date) ? r.結案日期 : null;  // 已正規化為 Date；render 無 toDate
+      l2.appendChild(el("span", "dr-meta",
+        (r.案件類型 || "未分類")
+        + (cd ? "・" + (cd.getMonth() + 1) + "/" + cd.getDate() + " 結案" : "")
+        + "・" + (displayOwner(r.承辦人) || "未指派")));
+      var url = airtableUrl(r.id);
+      if (url) {
+        var a = el("a", "dr-link", "🔗");
+        a.href = url; a.target = "_blank"; a.rel = "noopener";
+        a.title = "在 Airtable 開啟（如金額有誤可於此修正）";
+        l2.appendChild(a);
+      }
+      li.appendChild(l2);
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    host.appendChild(box);
+  }
+
   function renderDealTrack(state) {
     var host = $("deal-track"); if (!host) return;
     clear(host);
@@ -577,12 +589,13 @@
       var pace = (d.dailyPace % 1 === 0) ? String(d.dailyPace) : d.dailyPace.toFixed(1);
       host.appendChild(el("div", "deal-pace", "本月已過 " + d.daysElapsed + " 天・平均每天 " + pace + " 件"));
     }
-    // 結果分布：純二元——成交（金額>0）・未成交（金額=0）。「待補」不顯示，改為下方可點的「填結果」nudge。
+    // 結果分布：純二元——成交（金額>0）・未成交（金額=0）。「待補」不顯示。
     if (d.monthClosedCount > 0) {
       var parts = [];
       if (d.honestCount > 0) parts.push("成交 " + d.honestCount + " 件（" + fmtMoney(d.honestAmount) + "）");
       if (d.lostCount > 0) parts.push("未成交 " + d.lostCount + " 件");
       if (parts.length) host.appendChild(el("div", "deal-target", "其中：" + parts.join("・")));
+      renderDealsReview(d, host);  // 成交紀錄帳本（只收成交，肯定而非催促）
     }
 
     host.appendChild(closedList("案件類型分布", d.byType, "by-type", "本月暫無結案案件", 6));

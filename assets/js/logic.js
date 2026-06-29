@@ -287,8 +287,8 @@
     var closable = active.filter(function (r) { return isHuman(r); });
     // 本月結案集：已完成 + 結案日期落在當月 → 統計件數／案型／承辦人／已登金額。
     var monthClosedCount = 0, honestCount = 0, honestAmount = 0;
-    var dealLost = 0, dealPending = 0;  // 成交金額===0 → 未成交；空白 → 待補（內部用，不顯示）
-    var lostRecs = [], pendingRecs = [];  // 驅動「填結果」nudge：未成交/未填結果的逐筆清單
+    var dealLost = 0, dealPending = 0;  // 成交金額===0 → 未成交；空白 → 待補（計數用，不顯示缺口）
+    var honestRecs = [];  // 成交紀錄面板：本月成交（金額>0）逐筆，下方依結案日期 desc 排序
     var closeTypeMap = {}, closeOwnerMap = {};
     for (var mi = 0; mi < recs.length; mi++) {
       var mr = recs[mi];
@@ -301,10 +301,15 @@
       var mow = (typeof QJ !== "undefined" && QJ.ownerName ? QJ.ownerName(toStr(mr.承辦人)) : toStr(mr.承辦人)) || "未指派";
       closeOwnerMap[mow] = (closeOwnerMap[mow] || 0) + 1;
       var mamt = toNumber(mr.成交金額);
-      if (mamt != null && mamt > 0) { honestCount += 1; honestAmount += mamt; }
-      else if (mamt === 0) { dealLost += 1; lostRecs.push(mr); }   // 未成交（明確結果，非「未登記」）
-      else { dealPending += 1; pendingRecs.push(mr); }             // 空白 → 結果未填
+      if (mamt != null && mamt > 0) { honestCount += 1; honestAmount += mamt; honestRecs.push(mr); }
+      else if (mamt === 0) { dealLost += 1; }   // 未成交（計數驅動「其中」行；帳本只收成交）
+      else { dealPending += 1; }                 // 待補（計數）
     }
+    // 成交紀錄依結案日期 desc（最近成交在上）——render 不再排序，由此處保證可測。
+    honestRecs.sort(function (a, b) {
+      var ta = toDate(a.結案日期), tb = toDate(b.結案日期);
+      return (tb ? tb.getTime() : 0) - (ta ? ta.getTime() : 0);
+    });
     var byType = Object.keys(closeTypeMap).map(function (k) { return { label: k, count: closeTypeMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
     var byOwner = Object.keys(closeOwnerMap).map(function (k) { return { label: k, count: closeOwnerMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
 
@@ -441,8 +446,7 @@
         byOwner: byOwner,
         honestCount: honestCount,
         honestAmount: honestAmount,
-        lostRecs: lostRecs,
-        pendingRecs: pendingRecs,
+        honestRecs: honestRecs,
         lostCount: dealLost,
         pendingCount: dealPending,
         closable: closable,

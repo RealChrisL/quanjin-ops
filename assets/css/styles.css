@@ -432,19 +432,21 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 .deal-target { font-size:12.5px; color:var(--ink2); margin-top:4px; }
 .deal-pace { font-size:12px; color:var(--faint); margin-top:3px; }
 .deal-gap { font-size:12px; color:var(--warn); margin-top:4px; }
-/* 「登記結果」nudge：低調的提醒，不是警示。米底・無朱紅・小型外框按鈕。 */
-.deal-nudge { margin-top:10px; padding:9px 12px; background:var(--panel2);
-  border:1px solid var(--rule); border-radius:var(--radius); }
-.nudge-head { font-size:12.5px; font-weight:600; color:var(--ink2); line-height:1.4; }
-.nudge-sub { font-size:11.5px; color:var(--faint); margin:2px 0 8px; line-height:1.5; }
-.nudge-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:5px; }
-.nudge-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
-.nudge-name { font-size:12px; color:var(--ink2); flex:1; min-width:0; }
-.nudge-more { font-size:11px; color:var(--faint); padding-top:4px; }
-/* 小型・低調・無填色——點了才開結果選擇器，平時不喊「快處理」 */
-.cta.nudge-btn { background:transparent; color:var(--gold); border:1px solid var(--rule2);
-  padding:3px 11px; font-size:12px; font-weight:500; }
-.cta.nudge-btn:hover { background:var(--bg); color:var(--ink); border-color:var(--gold); }
+/* 成交紀錄帳本：金色合計＝他的業績；唯讀清單，無朱紅、無按鈕。只肯定，不顯示缺口。 */
+.deals-review h4 { display:flex; justify-content:space-between; align-items:baseline; gap:8px; }
+.dr-scope { font-size:11px; font-weight:400; color:var(--faint); }
+.dr-sum { font-family:var(--fm); font-size:22px; font-weight:700; color:var(--gold); line-height:1.2; margin-top:2px; }
+.dr-sum-label { font-size:12px; color:var(--ink2); margin-bottom:8px; }
+.dr-list { list-style:none; margin:0; padding:0; max-height:240px; overflow-y:auto; }
+.dr-row { padding:6px 0; border-bottom:1px solid var(--rule); }
+.dr-row:last-child { border-bottom:none; }
+.dr-l1 { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.dr-name { font-size:13px; color:var(--ink); }
+.dr-amt { font-family:var(--fm); font-size:13.5px; font-weight:600; color:var(--ink); white-space:nowrap; }
+.dr-l2 { display:flex; justify-content:space-between; align-items:center; margin-top:2px; gap:8px; }
+.dr-meta { font-size:11.5px; color:var(--faint); }
+.dr-link { font-size:12px; text-decoration:none; opacity:.55; }
+.dr-link:hover { opacity:1; }
 /* 智能助手 24/7 戰績橫幅 — 綠左框＝系統運作中（非朱紅的「需處理」） */
 .agent-banner { background:var(--panel2); border:1px solid var(--rule2); border-left:6px solid var(--ok); padding:12px 20px; margin-bottom:18px; }
 .agent-banner[hidden] { display:none; }

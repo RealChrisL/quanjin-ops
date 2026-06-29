@@ -324,9 +324,67 @@ function test_dealOutcomeSplit() {
   check("DS 未成交(成交金額=0) → lostCount = 2", d.lostCount === 2, d.lostCount);
   check("DS 待補(blank) → pendingCount = 1", d.pendingCount === 1, d.pendingCount);
   check("DS 成交(>0) → honestCount = 1", d.honestCount === 1, d.honestCount);
-  // nudge feeds: per-close record lists (drive 「填結果」/「確認結果」 buttons)
-  check("DS lostRecs has the 2 未成交 records", d.lostRecs && d.lostRecs.length === 2, d.lostRecs && d.lostRecs.length);
-  check("DS pendingRecs has the 1 待補 record", d.pendingRecs && d.pendingRecs.length === 1, d.pendingRecs && d.pendingRecs.length);
+  check("DS honestRecs has the 1 成交 record", d.honestRecs && d.honestRecs.length === 1, d.honestRecs && d.honestRecs.length);
+}
+
+/* ===========================================================================
+ * TASK 2H — 成交紀錄 review panel: honestRecs data layer (extends 2G)
+ * ======================================================================== */
+function test_honestRecsPanel() {
+  console.log("TASK 2H — 成交紀錄 (honestRecs data layer)");
+  var now = new Date();
+  function md(day) { return new Date(now.getFullYear(), now.getMonth(), day); }
+  var lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 15);
+
+  var won1 = R({ 委託人: "甲", 狀態: QJ.STATUS.DONE, 結案日期: md(20), 成交金額: 10000, 案件類型: "遺囑",   承辦人: XU_FULL });
+  var won2 = R({ 委託人: "乙", 狀態: QJ.STATUS.DONE, 結案日期: md(12), 成交金額: 50000, 案件類型: "繼承",   承辦人: "黃玲智" });
+  var won3 = R({ 委託人: "丙", 狀態: QJ.STATUS.DONE, 結案日期: md(5),  成交金額: 30000, 案件類型: "監護宣告", 承辦人: "" });
+  var lost = R({ 委託人: "丁", 狀態: QJ.STATUS.DONE, 結案日期: md(18), 成交金額: 0 });
+  var pend = R({ 委託人: "戊", 狀態: QJ.STATUS.DONE, 結案日期: md(9),  成交金額: null });
+  var lm   = R({ 委託人: "己", 狀態: QJ.STATUS.DONE, 結案日期: lastMonth, 成交金額: 80000 });
+  var open = R({ 委託人: "庚", 狀態: QJ.STATUS.OPEN,  成交金額: 99999 });
+
+  var d = QJ.logic.analyze([won1, won2, won3, lost, pend, lm, open], {}).deal;
+  var names = (d.honestRecs || []).map(function (r) { return r.委託人; });
+
+  check("HR honestRecs has exactly the 3 in-month 成交(>0) closes",
+        d.honestRecs && d.honestRecs.length === 3, d.honestRecs && d.honestRecs.length);
+  check("HR includes exactly 甲/乙/丙",
+        names.indexOf("甲") !== -1 && names.indexOf("乙") !== -1 && names.indexOf("丙") !== -1, names);
+  check("HR excludes 未成交(=0)/待補(blank)/上月成交/未結案",
+        names.indexOf("丁") === -1 && names.indexOf("戊") === -1 &&
+        names.indexOf("己") === -1 && names.indexOf("庚") === -1, names);
+  check("HR honestRecs.length === honestCount",
+        d.honestRecs.length === d.honestCount, [d.honestRecs.length, d.honestCount]);
+  var sum = (d.honestRecs || []).reduce(function (a, r) { return a + (r.成交金額 || 0); }, 0);
+  check("HR sum(honestRecs.成交金額) === honestAmount", sum === d.honestAmount, [sum, d.honestAmount]);
+  check("HR honestAmount === 90000 (10000+50000+30000)", d.honestAmount === 90000, d.honestAmount);
+  check("HR sorted by 結案日期 desc (甲20→乙12→丙5)",
+        names[0] === "甲" && names[1] === "乙" && names[2] === "丙", names);
+  var allFields = (d.honestRecs || []).every(function (r) {
+    return r.委託人 !== undefined && r.成交金額 != null && r.結案日期 instanceof Date &&
+           r.案件類型 !== undefined && r.承辦人 !== undefined;
+  });
+  check("HR each entry carries 委託人/成交金額/結案日期/案件類型/承辦人", allFields, d.honestRecs);
+  var r乙 = (d.honestRecs || []).filter(function (r) { return r.委託人 === "乙"; })[0];
+  check("HR entry values intact (乙: 50000 / 繼承 / 黃玲智)",
+        r乙 && r乙.成交金額 === 50000 && r乙.案件類型 === "繼承" && r乙.承辦人 === "黃玲智", r乙);
+  var z = QJ.logic.analyze([
+    R({ 狀態: QJ.STATUS.DONE, 結案日期: md(10), 成交金額: 0 }),
+    R({ 狀態: QJ.STATUS.DONE, 結案日期: md(11), 成交金額: null }),
+    R({ 狀態: QJ.STATUS.DONE, 結案日期: lastMonth, 成交金額: 80000 }),
+  ], {}).deal;
+  check("HR-edge 0 成交 this month → honestRecs empty", z.honestRecs && z.honestRecs.length === 0, z.honestRecs);
+  check("HR-edge 0 成交 → honestAmount 0", z.honestAmount === 0, z.honestAmount);
+  check("HR-edge 0 成交 → honestCount 0", z.honestCount === 0, z.honestCount);
+  var lmOnly = QJ.logic.analyze([
+    R({ 委託人: "上月", 狀態: QJ.STATUS.DONE, 結案日期: lastMonth, 成交金額: 60000 }),
+  ], {}).deal;
+  check("HR-scope last-month 成交(>0) excluded", lmOnly.honestRecs.length === 0, lmOnly.honestRecs);
+  check("HR-scope last-month → honestAmount 0", lmOnly.honestAmount === 0, lmOnly.honestAmount);
+  var em = QJ.logic.analyze([], {}).deal;
+  check("HR-edge empty input → honestRecs === [] (array, not undefined)",
+        Array.isArray(em.honestRecs) && em.honestRecs.length === 0, em.honestRecs);
 }
 
 /* ---- run ---- */
@@ -338,6 +396,7 @@ test_helpers();
 test_staffLoader();
 test_avgRespWindow();
 test_dealOutcomeSplit();
+test_honestRecsPanel();
 console.log("");
 if (FAILS.length) {
   console.log("FAILED: " + FAILS.length + " — " + safe(FAILS));
