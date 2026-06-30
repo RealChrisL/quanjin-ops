@@ -192,8 +192,13 @@
     api("/cta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
-        if (res.ok && res.j && res.j.ok) { toast("✓ " + okMsg, "ok"); load(); }
-        else { toast((res.j && res.j.error) || "操作失敗，請重試", "danger"); }
+        if (res.ok && res.j && res.j.ok) {
+          toast("✓ " + okMsg, "ok");
+          // 樂觀移除這張卡 → 同事立刻看到「動作成功」,不必等伺服器全表重抓;
+          // 30 秒後的輪詢會以伺服器真相重繪(已結案進已結案區、已聯繫的回進行中區)。
+          var card = list.querySelector('[data-id="' + id + '"]');
+          if (card && card.parentNode) card.parentNode.removeChild(card);
+        } else { toast((res.j && res.j.error) || "操作失敗，請重試", "danger"); }
       })
       .catch(function () { toast("連線失敗，請重試", "danger"); });
   }
