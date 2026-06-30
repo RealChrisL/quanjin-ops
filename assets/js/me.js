@@ -52,13 +52,15 @@
       .catch(function (s) { gate(s === 401 ? "連結已失效，請向全謹團隊索取新的連結。" : "連線失敗，請稍後再試。"); });
   }
 
-  var TODO_HOURS = 24;  // 超過一天沒互動 → 列入本日待辦
-
   function idleHours(f) {
     var t = f["最後互動時間"]; if (!t) return 9999;   // 從未互動 → 視為最該跟進
     var ms = Date.now() - new Date(t).getTime();
     return (isNaN(ms) || ms < 0) ? 0 : ms / 3600000;
   }
+  // 待辦門檻依狀態:跟進中(智能助手在跑、客戶在等)較急 24h;人工接管中(同仁自己在 OA/電話辦)
+  // 給較長緩衝 72h——否則辦理中的案子每天都被標紅,反而被無視。
+  function todoHours(f) { return (f["進度狀態"] === "人工接管中") ? 72 : 24; }
+  function isTodo(f) { return idleHours(f) >= todoHours(f); }
 
   function renderHead(n, todoN) {
     clear(head);
@@ -84,8 +86,8 @@
     var active = cases.filter(function (c) { return (c.fields["進度狀態"] || "") !== "已完成"; });
     var closed = cases.filter(function (c) { return (c.fields["進度狀態"] || "") === "已完成" && c.fields["結案日期"]; });
     active.sort(function (a, b) { return idleHours(b.fields) - idleHours(a.fields); });  // 最久沒動的在上
-    var todo = active.filter(function (c) { return idleHours(c.fields) >= TODO_HOURS; });
-    var rest = active.filter(function (c) { return idleHours(c.fields) < TODO_HOURS; });
+    var todo = active.filter(function (c) { return isTodo(c.fields); });
+    var rest = active.filter(function (c) { return !isTodo(c.fields); });
     renderHead(active.length, todo.length);
     clear(list);
 
@@ -146,7 +148,7 @@
     var l2 = el("div", "me-l2");
     l2.appendChild(el("span", "me-type", f["案件類型"] || "未分類"));
     var w = waitLabel(f);
-    if (w) l2.appendChild(el("span", isTodo ? "me-wait me-overdue" : "me-wait", w + (isTodo ? "・待跟進" : "")));
+    if (w) l2.appendChild(el("span", isTodo ? "me-wait me-overdue" : "me-wait", w + (isTodo ? "・未更新" : "")));
     li.appendChild(l2);
     var acts = el("div", "me-acts");
     acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫"); }));
@@ -160,18 +162,30 @@
     var existing = li.querySelector(".me-chooser");
     if (existing) { existing.remove(); return; }   // toggle
     var ch = el("div", "me-chooser");
-    ch.appendChild(el("span", "me-ch-q", "本案結果？（成交→填金額　·　未成交→直接登記）"));
-    ch.appendChild(btn("成交（填金額）", "ok", function () {
-      var v = window.prompt("成交金額（數字）：", "");
-      if (v == null) return;
-      var nn = parseInt(String(v).replace(/[^0-9]/g, ""), 10);
-      if (!(nn > 0)) { toast("請輸入大於 0 的金額", "warn"); return; }
-      doCta(id, { action: "close", recordId: id, amount: nn }, "已結案：成交 " + fmtMoney(nn));
-    }));
+    ch.appendChild(el("span", "me-ch-q", "本案結果？"));
+    ch.appendChild(btn("成交（填金額）", "ok", function () { amountForm(ch, id); }));
     ch.appendChild(btn("未成交", "ink", function () {
       doCta(id, { action: "close", recordId: id, amount: 0 }, "已結案：未成交");
     }));
     li.appendChild(ch);
+  }
+
+  // #3:頁內數字輸入(取代 window.prompt)——鍵盤在頁面內展開、不蓋畫面,輸入的數字看得到再確認。
+  function amountForm(ch, id) {
+    clear(ch);
+    ch.appendChild(el("span", "me-ch-q", "成交金額（數字）"));
+    var inp = el("input", "me-amt-input");
+    inp.type = "number"; inp.setAttribute("inputmode", "numeric"); inp.placeholder = "例如 25000"; inp.min = "1";
+    ch.appendChild(inp);
+    var row = el("div", "me-amt-row");
+    row.appendChild(btn("確認登記", "ok", function () {
+      var n = parseInt(String(inp.value || "").replace(/[^0-9]/g, ""), 10);
+      if (!(n > 0)) { toast("請輸入大於 0 的金額", "warn"); inp.focus(); return; }
+      doCta(id, { action: "close", recordId: id, amount: n }, "已結案：成交 " + fmtMoney(n));
+    }));
+    row.appendChild(btn("取消", "ink", function () { ch.remove(); }));
+    ch.appendChild(row);
+    setTimeout(function () { try { inp.focus(); } catch (e) {} }, 50);
   }
 
   function doCta(id, body, okMsg) {

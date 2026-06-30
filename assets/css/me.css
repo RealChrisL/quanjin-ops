@@ -59,6 +59,11 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-chooser{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px;padding-top:11px;border-top:1px dashed var(--rule2);}
 .me-ch-q{font-size:13px;color:var(--ink2);width:100%;margin-bottom:2px;}
 .me-chooser .me-btn{flex:1;min-width:120px;}
+/* 頁內金額輸入 */
+.me-amt-input{width:100%;padding:12px 12px;font-family:var(--fm);font-size:18px;font-weight:600;color:var(--ink);background:#fff;border:1.5px solid var(--ink);border-radius:0;-webkit-appearance:none;}
+.me-amt-input:focus{outline:none;border-color:var(--accent);}
+.me-amt-row{display:flex;gap:8px;width:100%;}
+.me-amt-row .me-btn{flex:1;}
 
 .me-toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--ink);color:var(--seal-text);padding:12px 20px;font-size:14px;font-weight:600;z-index:9;max-width:90%;text-align:center;box-shadow:0 2px 0 0 rgba(0,0,0,.25);}
 .me-toast.ok{background:var(--ok);}
