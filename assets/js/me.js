@@ -31,11 +31,14 @@
 
   function nameOf(f) { return f["Line 備註名稱"] || f["姓名"] || f["顯示名稱"] || f["LINE顯示名稱"] || "未具名"; }
   function fmtMoney(n) { return "NT$" + Number(n || 0).toLocaleString(); }
+  // 誠實標籤：量的是系統內「最後互動時間」(LINE 端)，看不到 OA／電話聯繫——所以說「上次互動」
+  // 而非「已等」(暗示客戶在乾等)，也不標「未更新」(像在指責同仁沒做事)。同仁在 OA 處理過的案子，
+  // 系統本來就不知道；按「已聯繫」即可記錄並暫停提醒。
   function waitLabel(f) {
     var t = f["最後互動時間"]; if (!t) return "";
     var ms = Date.now() - new Date(t).getTime(); if (isNaN(ms) || ms < 0) return "";
     var h = ms / 3600000;
-    return h < 24 ? ("已等 " + Math.round(h) + " 小時") : ("已等 " + Math.round(h / 24) + " 天");
+    return h < 24 ? ("上次互動 " + Math.round(h) + " 小時前") : ("上次互動 " + Math.round(h / 24) + " 天前");
   }
 
   function gate(msg) {
@@ -46,7 +49,9 @@
   }
 
   function boot() {
-    if (!token) { gate("請從 LINE 點開全謹傳給您的專屬連結進入。"); return; }
+    if (!token) { gate("請從 LINE 開啟全謹提供給您的專屬連結。"); return; }
+    // 載入中佔位：首次從 LINE 點進來會有 1～3 秒抓資料，空白畫面會被當成連結壞掉。
+    clear(list); list.appendChild(el("p", "me-empty", "載入中，請稍候…"));
     api("/whoami").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
       .then(function (w) { me = w; load(); startPoll(); })
       .catch(function (s) { gate(s === 401 ? "連結已失效，請向全謹團隊索取新的連結。" : "連線失敗，請稍後再試。"); });
@@ -93,8 +98,16 @@
 
     // 壹 · 本日待辦行動（超過一天未互動 → 優先跟進或結案）
     list.appendChild(section("本日待辦行動", todo.length ? (todo.length + " 件待跟進") : ""));
-    if (todo.length) todo.forEach(function (c) { list.appendChild(card(c, true)); });
-    else list.appendChild(el("p", "me-done", active.length ? "✓ 本日待辦已清空——所有案件近一日內都有進度。" : "✓ 目前沒有待辦案件。"));
+    if (todo.length) {
+      todo.forEach(function (c) { list.appendChild(card(c, true)); });
+    } else if (active.length) {
+      list.appendChild(el("p", "me-done", "✓ 本日待辦已清空——所有案件近一日內都有進度。"));
+    } else if (closed.length) {
+      list.appendChild(el("p", "me-done", "✓ 目前沒有進行中的案件。"));
+    } else {
+      // 全新同仁、尚無指派 → 別讓空畫面看起來像連結壞了，說明之後會怎麼收到案件。
+      list.appendChild(el("p", "me-empty", "目前沒有分配中的案件。有新案件指派給您時，全謹會透過 LINE 通知您 🙏"));
+    }
 
     // 貳 · 其他進行中
     if (rest.length) {
@@ -148,13 +161,16 @@
     var l2 = el("div", "me-l2");
     l2.appendChild(el("span", "me-type", f["案件類型"] || "未分類"));
     var w = waitLabel(f);
-    if (w) l2.appendChild(el("span", isTodo ? "me-wait me-overdue" : "me-wait", w + (isTodo ? "・未更新" : "")));
+    if (w) l2.appendChild(el("span", isTodo ? "me-wait me-overdue" : "me-wait", w));
     li.appendChild(l2);
     var acts = el("div", "me-acts");
     acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫"); }));
     acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id); }));
     li.appendChild(acts);
-    li.appendChild(el("div", "me-hint", "已聯繫＝已電話／OA 聯繫過先記錄　·　結案＝案件辦完，登記成交／未成交"));
+    // 兩行分開，11px 手機上比「＝…·…」好讀；並點明「已聯繫」是暫停提醒、明日未結案會再出現，
+    // 否則同仁以為按了就永久消失，隔天看到又冒出來會以為是 bug。
+    li.appendChild(el("div", "me-hint", "已聯繫：電話或 OA 聯繫過先記錄，暫停提醒；明日未結案會再出現"));
+    li.appendChild(el("div", "me-hint", "結案：案件辦完，填成交金額或標未成交"));
     return li;
   }
 
