@@ -52,7 +52,15 @@
       .catch(function (s) { gate(s === 401 ? "連結已失效，請向全謹團隊索取新的連結。" : "連線失敗，請稍後再試。"); });
   }
 
-  function renderHead(n) {
+  var TODO_HOURS = 24;  // 超過一天沒互動 → 列入本日待辦
+
+  function idleHours(f) {
+    var t = f["最後互動時間"]; if (!t) return 9999;   // 從未互動 → 視為最該跟進
+    var ms = Date.now() - new Date(t).getTime();
+    return (isNaN(ms) || ms < 0) ? 0 : ms / 3600000;
+  }
+
+  function renderHead(n, todoN) {
     clear(head);
     var row = el("div", "me-hrow");
     row.appendChild(el("div", "me-seal", "全謹"));
@@ -61,7 +69,9 @@
     tx.appendChild(el("div", "me-who", (me && me.name ? me.name : "") + "　承辦人員"));
     row.appendChild(tx);
     head.appendChild(row);
-    head.appendChild(el("div", "me-count", "進行中 " + n + " 件"));
+    var cnt = "進行中 " + n + " 件";
+    if (todoN) cnt += "　·　待辦 " + todoN + " 件";
+    head.appendChild(el("div", "me-count", cnt));
   }
 
   function load() {
@@ -72,17 +82,36 @@
 
   function render(cases) {
     var active = cases.filter(function (c) { return (c.fields["進度狀態"] || "") !== "已完成"; });
-    active.sort(function (a, b) { return new Date(a.fields["最後互動時間"] || 0) - new Date(b.fields["最後互動時間"] || 0); });
-    renderHead(active.length);
+    active.sort(function (a, b) { return idleHours(b.fields) - idleHours(a.fields); });  // 最久沒動的在上
+    var todo = active.filter(function (c) { return idleHours(c.fields) >= TODO_HOURS; });
+    var rest = active.filter(function (c) { return idleHours(c.fields) < TODO_HOURS; });
+    renderHead(active.length, todo.length);
     clear(list);
     if (!active.length) { list.appendChild(el("p", "me-empty", "目前沒有進行中的案件。")); return; }
-    active.forEach(function (c) { list.appendChild(card(c)); });
+
+    // 壹 · 本日待辦行動（超過一天未互動 → 優先跟進或結案）
+    list.appendChild(section("本日待辦行動", todo.length ? (todo.length + " 件待跟進") : ""));
+    if (todo.length) todo.forEach(function (c) { list.appendChild(card(c, true)); });
+    else list.appendChild(el("p", "me-done", "✓ 本日待辦已清空——所有案件近一日內都有進度。"));
+
+    // 貳 · 其他進行中
+    if (rest.length) {
+      list.appendChild(section("其他進行中", rest.length + " 件"));
+      rest.forEach(function (c) { list.appendChild(card(c, false)); });
+    }
+  }
+
+  function section(title, sub) {
+    var s = el("div", "me-sec");
+    s.appendChild(el("span", "me-sec-t", title));
+    if (sub) s.appendChild(el("span", "me-sec-s", sub));
+    return s;
   }
 
   function btn(txt, kind, fn) { var b = el("button", "me-btn me-" + kind, txt); b.addEventListener("click", fn); return b; }
 
-  function card(c) {
-    var f = c.fields, li = el("div", "me-card"); li.setAttribute("data-id", c.id);
+  function card(c, isTodo) {
+    var f = c.fields, li = el("div", "me-card" + (isTodo ? " is-todo" : "")); li.setAttribute("data-id", c.id);
     var l1 = el("div", "me-l1");
     l1.appendChild(el("span", "me-name", nameOf(f)));
     var amt = f["成交金額"];
@@ -90,7 +119,8 @@
     li.appendChild(l1);
     var l2 = el("div", "me-l2");
     l2.appendChild(el("span", "me-type", f["案件類型"] || "未分類"));
-    var w = waitLabel(f); if (w) l2.appendChild(el("span", "me-wait", w));
+    var w = waitLabel(f);
+    if (w) l2.appendChild(el("span", isTodo ? "me-wait me-overdue" : "me-wait", w + (isTodo ? "・待跟進" : "")));
     li.appendChild(l2);
     var acts = el("div", "me-acts");
     acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫"); }));

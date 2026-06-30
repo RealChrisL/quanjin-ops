@@ -20,6 +20,17 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-list{padding:12px 16px 48px;max-width:640px;margin:0 auto;}
 .me-empty{color:var(--faint);font-size:14px;text-align:center;padding:48px 16px;line-height:1.8;}
 
+/* 區段標題（本日待辦行動 / 其他進行中）*/
+.me-sec{display:flex;align-items:baseline;gap:8px;margin:18px 2px 10px;border-bottom:2px solid var(--ink);padding-bottom:5px;}
+.me-sec:first-child{margin-top:4px;}
+.me-sec-t{font-family:var(--fd);font-weight:900;font-size:16px;color:var(--ink);}
+.me-sec-s{font-family:var(--fm);font-size:12px;color:var(--accent);font-weight:600;}
+.me-done{font-size:13.5px;color:var(--ok);padding:10px 4px 4px;line-height:1.7;}
+
+/* 待辦案件：朱紅左緣，強調該優先處理 */
+.me-card.is-todo{border-left-color:var(--accent);}
+.me-overdue{color:var(--accent)!important;font-weight:600;}
+
 .me-card{background:var(--panel);border:1.5px solid var(--rule2);border-left:4px solid var(--ink);padding:12px 14px;margin-bottom:12px;}
 .me-l1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
 .me-name{font-size:16px;font-weight:700;color:var(--ink);}
