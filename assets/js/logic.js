@@ -320,14 +320,19 @@
     var byOwner = Object.keys(closeOwnerMap).map(function (k) { return { label: k, count: closeOwnerMap[k] }; }).sort(function (a, b) { return b.count - a.count; });
 
     /* ---- team：依承辦人分組 ---- */
-    // 空承辦人 → 歸「未指派」。avgRespDays 誠實設 null（無回應歷史可算）。
-    var teamMap = {};   // owner → {active, overdue}
+    // 空承辦人 → 歸「未指派」。maxWaitDays＝該承辦人待跟進案件中最久未更新的天數（誠實的等候訊號）。
+    var teamMap = {};   // owner → {active, overdue, maxWaitDays}
     for (var t = 0; t < queue.length; t++) {
       var q = queue[t];
       var owner = ownerNameOf(q.rec.承辦人) || "未指派";
-      if (!teamMap[owner]) teamMap[owner] = { active: 0, overdue: 0 };
+      if (!teamMap[owner]) teamMap[owner] = { active: 0, overdue: 0, maxWaitDays: 0 };
       teamMap[owner].active += 1;
-      if (q.level === "overdue" || q.level === "pending") teamMap[owner].overdue += 1; // 待跟進＝待回+逾期
+      if (q.level === "overdue" || q.level === "pending") {
+        teamMap[owner].overdue += 1; // 待跟進＝待回+逾期
+        // C（取代平均首覆）：該承辦人「待跟進案件中最久沒更新幾天」——誠實可行動的等候訊號
+        // （以最後互動時間 idle 計；OA 端回覆系統看不到，所以這是「最久沒在系統留紀錄」）。
+        if ((q.waitDays || 0) > teamMap[owner].maxWaitDays) teamMap[owner].maxWaitDays = q.waitDays;
+      }
     }
     var ownerNames = Object.keys(teamMap);
 
@@ -343,32 +348,17 @@
     }
     var overloadThreshold = Math.max(5, 1.5 * meanActive);
 
-    // 平均首覆：對「近 N 天進線 且 有首次進線時間＋首次回應時間」者，回應延遲＝首次回應−首次進線
-    // （小時），依承辦人平均。限定近 N 天進線：舊案的首次回應時間多為近期動作才補登（非真實回覆，
-    // OA 端回覆系統看不到），會把平均灌成數十天的假值（QJ.RESP_WINDOW_DAYS，單一來源於 config.js）。
-    var respMap = {};
-    var respWinDays = (typeof QJ !== "undefined" && QJ.RESP_WINDOW_DAYS) || 14;
-    var respCutoff = now.getTime() - respWinDays * DAY_MS;
-    for (var rp = 0; rp < recs.length; rp++) {
-      var rr2 = recs[rp];
-      var inq = toDate(rr2.首次進線時間), rsp = toDate(rr2.首次回應時間);
-      if (!inq || !rsp || rsp.getTime() < inq.getTime()) continue;
-      if (inq.getTime() < respCutoff) continue;  // 舊進線排除：補登時間 ≠ 真實回覆，會灌大平均
-      var ow2 = ownerNameOf(rr2.承辦人) || "未指派";
-      if (!respMap[ow2]) respMap[ow2] = { sum: 0, n: 0 };
-      respMap[ow2].sum += (rsp.getTime() - inq.getTime()) / 3600000;
-      respMap[ow2].n += 1;
-    }
+    // 平均首覆 移除（2026-06-30）：量的是系統內「首次回應時間」(自動接管那刻蓋的)，非真人回覆——
+    // 真正回客戶在 OA、系統看不到 → 永遠 ~0、不驅動決策。客戶等候改看待回/逾期。
     var team = ownerNames.map(function (owner) {
       var info = teamMap[owner];
       // 「未指派」不是人，永遠不標過載——那是「待分配」，不是「有人被壓垮」。
       var flag = (owner !== "未指派" && info.active >= overloadThreshold) ? "overload" : "ok";
-      var rm = respMap[owner];
       return {
         owner: owner,
         active: info.active,
         overdue: info.overdue,
-        avgRespHrs: (rm && rm.n) ? (rm.sum / rm.n) : null,
+        maxWaitDays: info.maxWaitDays,
         load: info.active,
         flag: flag,
       };

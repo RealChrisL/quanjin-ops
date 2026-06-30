@@ -36,10 +36,9 @@ QJ.proxyConfigured = function () { return !!(QJ.proxyUrl() && QJ.proxyToken()); 
 /* ---- 進度狀態值（對齊生產 CRM 三態，prod 真實值）---- */
 QJ.STATUS = { OPEN:"跟進中", HUMAN:"人工接管中", DONE:"已完成" };
 QJ.STATUS_DISPLAY = { "跟進中":"智能助手跟進中", "人工接管中":"人工接管中", "已完成":"已完成" };
-/* 平均首覆：只計「近 N 天進線」的案件。舊案的「首次回應時間」多半是近期才被動作（接管／結案／
- * 已聯繫）補登的，而非真實回覆時刻（OA Manager 的回覆系統看不到），會把平均灌成數十天的假值。
- * 限定近 N 天進線 → 補登時間貼近進線，平均反映真實近況。OA 端的回覆本來就不計入。 */
-QJ.RESP_WINDOW_DAYS = 7;
+/* 「平均首覆」已於 2026-06-30 移除：它量的是系統內「首次回應時間」(自動接管那刻蓋的)，而非真人
+ * 在 OA 回客戶的時刻(系統看不到)，永遠 ~0、不驅動決策。改以 team.maxWaitDays（最久待跟進天數）
+ * 表達真正可行動的「客戶在等」訊號。 */
 
 /* ---- FIELD_MAP 預設：語意鍵 → 候選欄位名（啟發式自動對應，使用者於設定區確認/修改）----
  * 自動偵測時，對每個語意鍵取「第一個存在於 schema 的候選」。lastInteraction 特殊：取多欄最新有效值。
@@ -200,7 +199,7 @@ QJ.todayISODate = function () { var d = new Date(); return d.getFullYear()+"-"+S
  *     summary:{ text:String, overdue:Number, closable:Number },
  *     kpis:{ awaiting:Number, overdueRisk:Number, closableToday:Number, monthAmount:Number, overloadedOwners:Number },
  *     queue:[ { rec:NormRecord, waitDays:Number, level:'overdue'|'soon'|'ok', nextCTA:{type,label} } ],
- *     team:[ { owner:String, active:Number, overdue:Number, avgRespDays:Number|null, load:Number, flag:'overload'|'ok' } ],
+ *     team:[ { owner:String, active:Number, overdue:Number, maxWaitDays:Number, load:Number, flag:'overload'|'ok' } ],
  *     deal:{ monthAmount:Number, target:Number|null, closable:[NormRecord], pendingAmount:[NormRecord] },
  *     actions:[ { id, kind:'overdue'|'close'|'amount', rec, label } ],   // 本日待辦行動（CTA-first，置頂）
  *     slices:{ types:[String], owners:[String], statuses:[String] }

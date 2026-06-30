@@ -634,14 +634,13 @@
       s2.appendChild(el("span", null, "待跟進"));
       stats.appendChild(s2);
       card.appendChild(stats);
-
-      if (t.avgRespHrs != null && !isNaN(t.avgRespHrs)) {
-        var meta = el("div", "team-meta");
-        var rtxt = t.avgRespHrs < 24 ? (Math.round(t.avgRespHrs) + " 小時") : (Math.round(t.avgRespHrs / 2.4) / 10 + " 天");
-        var respWin = (window.QJ && QJ.RESP_WINDOW_DAYS) || 14;
-        meta.appendChild(document.createTextNode("平均首覆 " + rtxt));
-        meta.appendChild(el("span", "team-meta-sub", "（近 " + respWin + " 天進線）"));
-        meta.title = "近 " + respWin + " 天進線案件的系統內首次回應時間平均；OA Manager 的回覆系統無法記錄，不計入。";
+      // C（取代平均首覆，2026-06-30）：誠實可行動的等候訊號——這位承辦人「最久一筆待跟進
+      // 幾天沒更新」。比一個永遠 ~0 的假首覆有用：直接指出「有人案子壓著、去看一下」。
+      // （以 idle 計；OA 端的回覆系統看不到，所以是「最久沒在系統留紀錄」。）
+      if (t.overdue > 0 && t.maxWaitDays >= 1) {
+        var meta = el("div", "team-meta" + (t.maxWaitDays >= 7 ? " team-meta-warn" : ""));
+        meta.appendChild(document.createTextNode("最久待跟進 " + Math.round(t.maxWaitDays) + " 天未更新"));
+        meta.title = "這位承辦人待跟進案件中，最久一筆距上次系統內互動的天數。OA Manager 的回覆系統無法記錄。";
         card.appendChild(meta);
       }
 

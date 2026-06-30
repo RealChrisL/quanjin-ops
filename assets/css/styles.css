@@ -530,8 +530,9 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 .team-stat span { font-size:11px; color:var(--ink2); }
 .team-stat.active b { color:var(--ink); }
 .team-stat.overdue b { color:var(--danger); }
-.team-meta { font-size:12px; color:var(--ink2); }
+.team-meta { font-size:12px; color:var(--ink2); margin-top:4px; }
 .team-meta .tm-resp { font-family:var(--fm); }
+.team-meta.team-meta-warn { color:var(--danger); font-weight:600; }
 
 /* =============================================================================
  * 肆 · 圖譜

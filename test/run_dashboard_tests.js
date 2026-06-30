@@ -288,27 +288,29 @@ function test_staffLoader() {
 }
 
 /* ===========================================================================
- * TASK 2F — 平均首覆 recent-inbound window (excludes backfill-stamped old cases)
+ * TASK 2F — team.maxWaitDays（取代平均首覆）：承辦人待跟進案件中最久未更新的天數
+ *   誠實可行動的等候訊號——只算「待跟進(待回/逾期)」的案子，近期有動的不算。
  * ======================================================================== */
-function test_avgRespWindow() {
-  console.log("TASK 2F — 平均首覆 recent-inbound window");
+function test_maxWaitDays() {
+  console.log("TASK 2F — team.maxWaitDays（最久待跟進）");
   var OWNER = "黃玲智";
-  // OLD artifact: inbound 40d ago, 首次回應時間 stamped 1d ago (a 39-day fake) → EXCLUDED (>窗)
-  var oldRec = R({ 狀態: QJ.STATUS.HUMAN, 承辦人: OWNER, 首次進線時間: daysAgo(40), 首次回應時間: daysAgo(1) });
-  // RECENT real: inbound 3d ago, responded ~2h later → INCLUDED
-  var recentRec = R({ 狀態: QJ.STATUS.HUMAN, 承辦人: OWNER,
-                      首次進線時間: daysAgo(3),
-                      首次回應時間: new Date(daysAgo(3).getTime() + 2 * 3600000) });
-  var s = QJ.logic.analyze([oldRec, recentRec], {});
+  // 兩筆都逾期（idle ≥1 天 → overdue）：3 天 + 8 天 → maxWaitDays 應取 8
+  var wait3 = R({ 狀態: QJ.STATUS.OPEN, 承辦人: OWNER, lastInteraction: daysAgo(3) });
+  var wait8 = R({ 狀態: QJ.STATUS.OPEN, 承辦人: OWNER, lastInteraction: daysAgo(8) });
+  // 剛互動過（idle ~1 小時 → 不是待跟進）→ 不應拉高 maxWaitDays
+  var fresh = R({ 狀態: QJ.STATUS.OPEN, 承辦人: OWNER, lastInteraction: minsAgo(60) });
+  var s = QJ.logic.analyze([wait3, wait8, fresh], {});
   var t = (s.team || []).filter(function (x) { return x.owner === OWNER; })[0];
-  check("AR owner has a team entry", !!t, s.team);
-  check("AR avgRespHrs reflects the recent case only (~2h, not the 39-day artifact)",
-        t && t.avgRespHrs != null && t.avgRespHrs < 24, t && t.avgRespHrs);
-  // old-only → all excluded → avgRespHrs null (honest: no in-window first-response data)
-  var s2 = QJ.logic.analyze([oldRec], {});
+  check("MW owner has a team entry", !!t, s.team);
+  check("MW maxWaitDays = oldest waiting case (8d, not 3d, not the fresh one)",
+        t && t.maxWaitDays === 8, t && t.maxWaitDays);
+  check("MW overdue counts the two waiting cases only (fresh excluded)",
+        t && t.overdue === 2, t && t.overdue);
+  // 全部都剛互動 → 沒有待跟進 → maxWaitDays 0（不是 null/NaN，誠實的「無人在等」）
+  var s2 = QJ.logic.analyze([fresh], {});
   var t2 = (s2.team || []).filter(function (x) { return x.owner === OWNER; })[0];
-  check("AR old-inbound-only → avgRespHrs null (excluded, not an inflated number)",
-        !t2 || t2.avgRespHrs == null, t2 && t2.avgRespHrs);
+  check("MW all-fresh → maxWaitDays 0 (nobody waiting, not an inflated number)",
+        t2 && t2.maxWaitDays === 0, t2 && t2.maxWaitDays);
 }
 
 /* ===========================================================================
@@ -421,7 +423,7 @@ test_isStaffOwnRecord();
 test_buildFilterFormula();
 test_helpers();
 test_staffLoader();
-test_avgRespWindow();
+test_maxWaitDays();
 test_dealOutcomeSplit();
 test_honestRecsPanel();
 test_closeReview();

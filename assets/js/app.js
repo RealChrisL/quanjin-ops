@@ -137,7 +137,7 @@
 
     if (cta === "contacted") {
       var rc = findRec(id), pc = { 最後互動時間: nowISO() };
-      if (rc && !rc.首次回應時間) pc.首次回應時間 = nowISO(); // 首次團隊回應 → 解鎖回應延遲/平均首覆
+      if (rc && !rc.首次回應時間) pc.首次回應時間 = nowISO(); // 記錄首次團隊回應時刻（Airtable 欄位，儀表板已不據此計分）
       doPatch(id, pc, function (r) { r.lastInteraction = new Date(); if (rc && !rc.首次回應時間) r.首次回應時間 = new Date(); }, "標記已聯繫", { action: "contacted" });
       return;
     }
