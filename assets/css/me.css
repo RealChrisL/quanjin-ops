@@ -31,6 +31,16 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-card.is-todo{border-left-color:var(--accent);}
 .me-overdue{color:var(--accent)!important;font-weight:600;}
 
+/* CTA 功能說明（每張卡按鈕下方一行小字）*/
+.me-hint{font-size:11px;color:var(--faint);margin-top:7px;line-height:1.5;}
+
+/* 已結案卡 */
+.me-card.me-closed{border-left-color:var(--rule2);background:var(--panel2);}
+.me-out{font-family:var(--fm);font-size:12.5px;font-weight:600;white-space:nowrap;}
+.me-out.me-won{color:var(--ok);}
+.me-out.me-lost{color:var(--ink2);font-weight:500;}
+.me-out.me-pend{color:var(--warn);}
+
 .me-card{background:var(--panel);border:1.5px solid var(--rule2);border-left:4px solid var(--ink);padding:12px 14px;margin-bottom:12px;}
 .me-l1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
 .me-name{font-size:16px;font-weight:700;color:var(--ink);}

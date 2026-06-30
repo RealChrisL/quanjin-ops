@@ -82,23 +82,49 @@
 
   function render(cases) {
     var active = cases.filter(function (c) { return (c.fields["進度狀態"] || "") !== "已完成"; });
+    var closed = cases.filter(function (c) { return (c.fields["進度狀態"] || "") === "已完成" && c.fields["結案日期"]; });
     active.sort(function (a, b) { return idleHours(b.fields) - idleHours(a.fields); });  // 最久沒動的在上
     var todo = active.filter(function (c) { return idleHours(c.fields) >= TODO_HOURS; });
     var rest = active.filter(function (c) { return idleHours(c.fields) < TODO_HOURS; });
     renderHead(active.length, todo.length);
     clear(list);
-    if (!active.length) { list.appendChild(el("p", "me-empty", "目前沒有進行中的案件。")); return; }
 
     // 壹 · 本日待辦行動（超過一天未互動 → 優先跟進或結案）
     list.appendChild(section("本日待辦行動", todo.length ? (todo.length + " 件待跟進") : ""));
     if (todo.length) todo.forEach(function (c) { list.appendChild(card(c, true)); });
-    else list.appendChild(el("p", "me-done", "✓ 本日待辦已清空——所有案件近一日內都有進度。"));
+    else list.appendChild(el("p", "me-done", active.length ? "✓ 本日待辦已清空——所有案件近一日內都有進度。" : "✓ 目前沒有待辦案件。"));
 
     // 貳 · 其他進行中
     if (rest.length) {
       list.appendChild(section("其他進行中", rest.length + " 件"));
       rest.forEach(function (c) { list.appendChild(card(c, false)); });
     }
+
+    // 參 · 已結案（複核——可補登／更正成交金額）
+    if (closed.length) {
+      closed.sort(function (a, b) { return String(b.fields["結案日期"] || "").localeCompare(String(a.fields["結案日期"] || "")); });
+      list.appendChild(section("已結案（可複核）", closed.length + " 件"));
+      closed.forEach(function (c) { list.appendChild(closedCard(c)); });
+    }
+  }
+
+  function closedCard(c) {
+    var f = c.fields, li = el("div", "me-card me-closed"); li.setAttribute("data-id", c.id);
+    var l1 = el("div", "me-l1");
+    l1.appendChild(el("span", "me-name", nameOf(f)));
+    var amt = f["成交金額"], n = (amt == null || amt === "") ? null : Number(amt), badge;
+    if (n != null && n > 0) badge = el("span", "me-out me-won", "成交 " + fmtMoney(n));
+    else if (n === 0) badge = el("span", "me-out me-lost", "未成交");
+    else badge = el("span", "me-out me-pend", "結果待補");
+    l1.appendChild(badge);
+    li.appendChild(l1);
+    var cd = f["結案日期"];
+    li.appendChild(el("div", "me-l2", (f["案件類型"] || "未分類") + (cd ? "・" + String(cd).slice(5) + " 結案" : "")));
+    var acts = el("div", "me-acts");
+    acts.appendChild(btn("修正結果", "ink", function () { openClose(li, c.id); }));
+    li.appendChild(acts);
+    li.appendChild(el("div", "me-hint", "修正結果＝補登或更正本案的成交金額／未成交"));
+    return li;
   }
 
   function section(title, sub) {
@@ -126,6 +152,7 @@
     acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫"); }));
     acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id); }));
     li.appendChild(acts);
+    li.appendChild(el("div", "me-hint", "已聯繫＝已電話／OA 聯繫過先記錄　·　結案＝案件辦完，登記成交／未成交"));
     return li;
   }
 
@@ -133,7 +160,7 @@
     var existing = li.querySelector(".me-chooser");
     if (existing) { existing.remove(); return; }   // toggle
     var ch = el("div", "me-chooser");
-    ch.appendChild(el("span", "me-ch-q", "本案結果？"));
+    ch.appendChild(el("span", "me-ch-q", "本案結果？（成交→填金額　·　未成交→直接登記）"));
     ch.appendChild(btn("成交（填金額）", "ok", function () {
       var v = window.prompt("成交金額（數字）：", "");
       if (v == null) return;
