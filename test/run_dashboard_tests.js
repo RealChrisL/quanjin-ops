@@ -72,7 +72,7 @@ function minsAgo(n) { return new Date(Date.now() - n * 60000); }
 
 var XU_UID = "U4c6dfbf4ab07c3452cf666201bf5d2de";          // 徐鈞澤 (roster)
 var XU_FULL = "徐鈞澤 (" + XU_UID + ")";                    // 「名字 (uid)」 form
-var HL_UID = "Ud5c30f62587012a787b42f7ab04c65fe";          // 黃玲智 (roster)
+var HL_UID = "Ud5c30f62587012a787b42f7ab04c65fe";          // 黃玲智 (離職 2026-07-02: 不在改派名冊,顯示對照保留)
 var STAFF_OA = "U3131bc24f96f966269acce66cc704f68";        // 奕溱 OA chat id (STAFF_OA_IDS)
 var CLIENT_UID = "U0123456789abcdef0123456789abcdef";       // valid LINE-uid format, NOT in roster
 
@@ -254,7 +254,7 @@ function test_staffLoader() {
   // FALLBACK: null / non-ok payload → no-op, hardcoded roster intact
   check("SL applyStaffRoster(null) → false (no-op)", QJ.applyStaffRoster(null) === false);
   check("SL applyStaffRoster({ok:false}) → false (no-op)", QJ.applyStaffRoster({ ok: false }) === false);
-  check("SL fallback preserves hardcoded uid (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
+  check("SL fallback preserves EX-staff display mapping (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
   check("SL fallback preserves hardcoded OA id (奕溱)", QJ.STAFF_OA_IDS[STAFF_OA] === "奕溱");
 
   // SUCCESS: merge backend roster onto the hardcoded values (Object.assign union)
@@ -267,13 +267,17 @@ function test_staffLoader() {
   check("SL STAFF_OA_IDS gains backend OA id", QJ.STAFF_OA_IDS[NEW_OA] === "傅子璇");
   check("SL TEAM_BY_UID gains backend uid", QJ.TEAM_BY_UID[NEW_UID] === "鍾文芳");
   check("SL STAFF_NAMES gains backend name (鍾文芳)", QJ.STAFF_NAMES["鍾文芳"] === true);
-  check("SL merge keeps hardcoded uid (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
+  check("SL merge keeps EX-staff display mapping (黃玲智)", QJ.TEAM_BY_UID[HL_UID] === "黃玲智");
   check("SL merge keeps hardcoded OA id (奕溱)", QJ.STAFF_OA_IDS[STAFF_OA] === "奕溱");
   // 改派 picker single-source: a backend-only colleague now appears in QJ.TEAM_ROSTER
   check("SL TEAM_ROSTER gains backend assignable colleague",
         (QJ.TEAM_ROSTER || []).some(function (m) { return m.uid === NEW_UID && m.name === "鍾文芳"; }) === true);
-  check("SL TEAM_ROSTER keeps hardcoded entry (黃玲智)",
-        (QJ.TEAM_ROSTER || []).some(function (m) { return m.uid === HL_UID; }) === true);
+  // 離職 offboard 釘 (2026-07-02): 離職者絕不可再出現在改派名冊(不可指派)，
+  // 但 uid→姓名 顯示對照與 STAFF_NAMES 過濾必須保留(歷史案件顯示+員工紀錄過濾)。
+  check("SL OFFBOARD ex-staff NOT in 改派 roster (黃玲智)",
+        (QJ.TEAM_ROSTER || []).some(function (m) { return m.uid === HL_UID; }) === false);
+  check("SL OFFBOARD ex-staff display name still resolves", QJ.ownerName("黃玲智 (" + HL_UID + ")") === "黃玲智");
+  check("SL OFFBOARD ex-staff name still staff-filtered", QJ.STAFF_NAMES["黃玲智"] === true);
 
   // THE DRIFT FIX: a backend-only staff member is now filtered out of the client list
   check("SL post-apply backend uid → _isStaffOwnRecord true",

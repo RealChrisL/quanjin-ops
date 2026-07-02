@@ -75,7 +75,6 @@ QJ.REASSIGN_ENABLED = true; // 改派啟用
  * 注意：姓名＋uid 會打包進公開 bundle；uid 為內部同仁 LINE id（非客戶資料）。
  * 顯示一律用真實姓名（例如 HSU → 徐鈞澤）。改派寫回格式＝「名字 (uid)」相容 bot 委派團隊成員。 */
 QJ.TEAM_ROSTER = [
-  { name: "黃玲智", uid: "Ud5c30f62587012a787b42f7ab04c65fe" },
   { name: "徐鈞澤", uid: "U4c6dfbf4ab07c3452cf666201bf5d2de" },
   { name: "黃薏任", uid: "U8744479371832d0e93d18ce56a9f6e30" },
   { name: "曹宜琪", uid: "Uaa58c929d155715574849a20e740c578" },
@@ -88,6 +87,9 @@ QJ.TEAM_ROSTER = [
 ];
 QJ.TEAM_BY_UID = {};
 QJ.TEAM_ROSTER.forEach(function (m) { QJ.TEAM_BY_UID[m.uid] = m.name; });
+/* 離職同仁：不在改派名冊（不可再被指派），但 uid→姓名 對照保留 —— 歷史案件的
+ * 承辦人欄仍要顯示名字而非裸 uid。黃玲智 2026-07-02 離職。 */
+QJ.TEAM_BY_UID["Ud5c30f62587012a787b42f7ab04c65fe"] = "黃玲智";
 QJ.delegateeValue = function (m) { return m.name + " (" + m.uid + ")"; }; // bot 委派團隊成員格式
 
 /* 同仁的 OA Manager 聊天 ID（chat.line.biz id ≠ webhook uid）。OA 對話建立的同仁
@@ -105,7 +107,7 @@ QJ.STAFF_OA_IDS = {
 /* 同仁姓名集合（含別名）——name-only 漏網防護（_isStaffOwnRecord 後備，僅在無 LINE用戶ID 時生效）。 */
 QJ.STAFF_NAMES = {};
 QJ.TEAM_ROSTER.forEach(function (m) { QJ.STAFF_NAMES[m.name] = true; });
-["HSU", "黃奕溱"].forEach(function (n) { QJ.STAFF_NAMES[n] = true; });
+["HSU", "黃奕溱", "黃玲智"].forEach(function (n) { QJ.STAFF_NAMES[n] = true; }); // 黃玲智=離職,僅過濾用
 // 承辦人顯示名：「名字 (uid)」→名字、純 uid→名字、其餘原樣。全站唯一 owner→name 解析來源。
 QJ.ownerName = function (raw) {
   var s = String(raw == null ? "" : raw).trim();
