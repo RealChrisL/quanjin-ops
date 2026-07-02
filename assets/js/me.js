@@ -17,7 +17,13 @@
   var head = document.getElementById("me-head");
   var list = document.getElementById("me-list");
   var toastEl = document.getElementById("me-toast");
+  var meClients = document.getElementById("me-clients");
   var me = null, polling = null;
+  // 全所客戶清單（admin/developer 專屬）狀態
+  var allClients = [], roster = [], clientSearch = "", clientStatus = "all",
+      clientShown = 30, clientListEl = null;
+
+  function isAdmin() { return !!(me && (me.role === "admin" || me.role === "developer")); }
 
   function el(t, c, x) { var e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
   function clear(n) { while (n.firstChild) n.removeChild(n.firstChild); }
@@ -44,6 +50,7 @@
   function gate(msg) {
     if (polling) { clearInterval(polling); polling = null; }
     clear(head); clear(list);
+    if (meClients) { clear(meClients); clientListEl = null; }  // 收起全所客戶清單
     head.appendChild(el("div", "me-title", "全謹 · 我的案件"));
     list.appendChild(el("p", "me-empty", msg));
   }
@@ -53,7 +60,7 @@
     // 載入中佔位：首次從 LINE 點進來會有 1～3 秒抓資料，空白畫面會被當成連結壞掉。
     clear(list); list.appendChild(el("p", "me-empty", "載入中，請稍候…"));
     api("/whoami").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (w) { me = w; load(); startPoll(); })
+      .then(function (w) { me = w; load(); startPoll(); if (isAdmin()) loadClients(); })
       .catch(function (s) { gate(s === 401 ? "連結已失效，請向全謹團隊索取新的連結。" : "連線失敗，請稍後再試。"); });
   }
 
@@ -79,6 +86,12 @@
     var cnt = "進行中 " + n + " 件";
     if (todoN) cnt += "　·　待辦 " + todoN + " 件";
     head.appendChild(el("div", "me-count", cnt));
+    // admin 才有全所面板,但它在個人區塊下方,首次進來不易發現(ux M1)→常駐一行導引。
+    if (isAdmin()) {
+      var guide = el("div", "me-count", "▽ 向下滑可查看全所客戶清單");
+      guide.style.marginTop = "6px"; guide.style.fontSize = "11.5px";
+      head.appendChild(guide);
+    }
   }
 
   function load() {
@@ -174,20 +187,22 @@
     return li;
   }
 
-  function openClose(li, id) {
+  // after（可選）：動作成功後的自訂處理。個人清單不傳 → 樂觀移除該卡；全所客戶清單傳
+  // loadClients → 以伺服器真相重繪整個面板（結案離開清單、指派/接管即時更新負責人與狀態）。
+  function openClose(li, id, after) {
     var existing = li.querySelector(".me-chooser");
     if (existing) { existing.remove(); return; }   // toggle
     var ch = el("div", "me-chooser");
     ch.appendChild(el("span", "me-ch-q", "本案結果？"));
-    ch.appendChild(btn("成交（填金額）", "ok", function () { amountForm(ch, id); }));
+    ch.appendChild(btn("成交（填金額）", "ok", function () { amountForm(ch, id, after); }));
     ch.appendChild(btn("未成交", "ink", function () {
-      doCta(id, { action: "close", recordId: id, amount: 0 }, "已結案：未成交");
+      doCta(id, { action: "close", recordId: id, amount: 0 }, "已結案：未成交", after);
     }));
     li.appendChild(ch);
   }
 
   // #3:頁內數字輸入(取代 window.prompt)——鍵盤在頁面內展開、不蓋畫面,輸入的數字看得到再確認。
-  function amountForm(ch, id) {
+  function amountForm(ch, id, after) {
     clear(ch);
     ch.appendChild(el("span", "me-ch-q", "成交金額（數字）"));
     var inp = el("input", "me-amt-input");
@@ -197,32 +212,212 @@
     row.appendChild(btn("確認登記", "ok", function () {
       var n = parseInt(String(inp.value || "").replace(/[^0-9]/g, ""), 10);
       if (!(n > 0)) { toast("請輸入大於 0 的金額", "warn"); inp.focus(); return; }
-      doCta(id, { action: "close", recordId: id, amount: n }, "已結案：成交 " + fmtMoney(n));
+      doCta(id, { action: "close", recordId: id, amount: n }, "已結案：成交 " + fmtMoney(n), after);
     }));
     row.appendChild(btn("取消", "ink", function () { ch.remove(); }));
     ch.appendChild(row);
     setTimeout(function () { try { inp.focus(); } catch (e) {} }, 50);
   }
 
-  function doCta(id, body, okMsg) {
+  // 同一時間只允許一個動作在傳送(單人操作;慢網路下防雙觸/雙送)。
+  var _ctaInProgress = false;
+  function doCta(id, body, okMsg, after) {
+    if (_ctaInProgress) return;
+    _ctaInProgress = true;
     api("/cta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
+        _ctaInProgress = false;
         if (res.ok && res.j && res.j.ok) {
           toast("✓ " + okMsg, "ok");
+          if (typeof after === "function") { after(); return; }
           // 樂觀移除這張卡 → 同事立刻看到「動作成功」,不必等伺服器全表重抓;
           // 30 秒後的輪詢會以伺服器真相重繪(已結案進已結案區、已聯繫的回進行中區)。
           var card = list.querySelector('[data-id="' + id + '"]');
           if (card && card.parentNode) card.parentNode.removeChild(card);
         } else { toast((res.j && res.j.error) || "操作失敗，請重試", "danger"); }
       })
-      .catch(function () { toast("連線失敗，請重試", "danger"); });
+      .catch(function () { _ctaInProgress = false; toast("連線失敗，請重試", "danger"); });
   }
 
+  // ── 全所客戶清單（僅 admin/developer）────────────────────────────────────────
+  var STATUS_DISP = { "跟進中": "智能助手跟進中", "人工接管中": "人工接管中", "已完成": "已完成" };
+  function statusDisp(s) { return STATUS_DISP[s] || s || ""; }
+
+  function loadClients() {
+    if (!meClients || !isAdmin()) return;
+    api("/clients").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) { allClients = d.cases || []; roster = d.roster || []; renderClientsPanel(); })
+      .catch(function (s) {
+        // 403（非 admin）→ 面板收起；其它錯誤(500/斷線/逾時) → 明說,別讓面板靜默消失
+        // 讓奕溱以為功能壞了(ux B1)。若清單已渲染過,保留舊資料只提示即可。
+        if (s === 403 && meClients) { clear(meClients); clientListEl = null; return; }
+        if (clientListEl) { toast("客戶清單更新失敗，顯示的是稍早的資料", "warn"); return; }
+        if (meClients) {
+          clear(meClients); clientListEl = null;
+          var errSec = el("div", "me-sec");
+          errSec.appendChild(el("span", "me-sec-t", "全所客戶清單"));
+          meClients.appendChild(errSec);
+          meClients.appendChild(el("p", "me-empty",
+            "客戶清單暫時無法載入，約 30 秒後會自動重試；若持續無法顯示，請告知全謹系統管理人員。"));
+        }
+      });
+  }
+
+  function filteredClients() {
+    var q = clientSearch.trim();
+    var arr = allClients.filter(function (c) {
+      var st = c.fields["進度狀態"] || "";
+      if (clientStatus !== "all" && st !== clientStatus) return false;
+      if (q && String(nameOf(c.fields)).indexOf(q) < 0) return false;
+      return true;
+    });
+    // 後端已 stalest-first;此處穩定排序把「未指派」浮到前面(同一新舊程度內最該指派)。
+    arr.sort(function (a, b) { return (a.owner ? 1 : 0) - (b.owner ? 1 : 0); });
+    return arr;
+  }
+
+  function renderClientsPanel() {
+    if (!meClients || !isAdmin()) return;
+    // 首次建立外殼(標題+搜尋+狀態籤),之後只重繪清單 → 打字時搜尋框不失焦。
+    if (!clientListEl) {
+      clear(meClients);
+      var sec = el("div", "me-sec");
+      sec.appendChild(el("span", "me-sec-t", "全所客戶清單"));
+      sec.appendChild(el("span", "me-sec-s", ""));
+      meClients.appendChild(sec);
+
+      var ctrl = el("div", "me-cctrl");
+      var search = el("input", "me-csearch");
+      search.type = "search"; search.placeholder = "搜尋客戶姓名…"; search.setAttribute("inputmode", "search");
+      search.addEventListener("input", function () { clientSearch = this.value || ""; clientShown = 30; renderClientList(); });
+      ctrl.appendChild(search);
+
+      var chips = el("div", "me-chips");
+      [["all", "全部"], ["跟進中", "智能助手跟進中"], ["人工接管中", "人工接管中"]].forEach(function (pair) {
+        var chip = el("button", "me-chip" + (pair[0] === clientStatus ? " active" : ""), pair[1]);
+        chip.addEventListener("click", function () {
+          clientStatus = pair[0]; clientShown = 30;
+          Array.prototype.forEach.call(chips.children, function (c) { c.classList.remove("active"); });
+          chip.classList.add("active");
+          renderClientList();
+        });
+        chips.appendChild(chip);
+      });
+      ctrl.appendChild(chips);
+      meClients.appendChild(ctrl);
+
+      clientListEl = el("div", "me-clist");
+      meClients.appendChild(clientListEl);
+    }
+    renderClientList();
+  }
+
+  function renderClientList() {
+    if (!clientListEl) return;
+    clear(clientListEl);
+    var arr = filteredClients();
+    var sub = meClients.querySelector(".me-sec .me-sec-s");
+    if (sub) sub.textContent = arr.length + " 件";
+    if (!arr.length) {
+      var q = clientSearch.trim();
+      clientListEl.appendChild(el("p", "me-empty", q
+        ? "找不到「" + q + "」的客戶，試試切換上方狀態篩選。"
+        : "目前沒有符合條件的客戶。"));
+      return;
+    }
+    arr.slice(0, clientShown).forEach(function (c) { clientListEl.appendChild(clientCard(c)); });
+    if (arr.length > clientShown) {
+      var more = btn("載入更多（尚有 " + (arr.length - clientShown) + " 件）", "ink", function () {
+        clientShown += 30; renderClientList();
+      });
+      more.classList.add("me-more");
+      clientListEl.appendChild(more);
+    }
+  }
+
+  function clientCard(c) {
+    var f = c.fields, li = el("div", "me-card me-ccard"); li.setAttribute("data-id", c.id);
+    var l1 = el("div", "me-l1");
+    l1.appendChild(el("span", "me-name", nameOf(f)));
+    if (f["優先級"] === "高優先") l1.appendChild(el("span", "me-pri", "高優先"));
+    li.appendChild(l1);
+    var l2 = el("div", "me-l2");
+    l2.appendChild(el("span", "me-type", f["案件類型"] || "未分類"));
+    l2.appendChild(el("span", "me-status", statusDisp(f["進度狀態"])));
+    li.appendChild(l2);
+    var l3 = el("div", "me-l3");
+    l3.appendChild(el("span", c.owner ? "me-owner" : "me-owner me-unowned", "負責人：" + (c.owner || "未指派")));
+    var w = waitLabel(f);
+    if (w) l3.appendChild(el("span", "me-wait", w));
+    li.appendChild(l3);
+    var acts = el("div", "me-acts me-acts-wrap");
+    acts.appendChild(btn("指派／改派", "ink", function () { openPicker(li, c.id); }));
+    acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫", loadClients); }));
+    acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id, loadClients); }));
+    // 接管/交回 有客戶可見的側效應(交回→客戶收到「感謝耐心等候」;接管→暖性結尾+助手靜默),
+    // 手機誤觸 = 客戶收到莫名訊息 → 先展開 inline 確認(ux H1/H2),並明說客戶端會發生什麼。
+    if (f["進度狀態"] === "人工接管中") {
+      acts.appendChild(btn("交回智能助手", "ink", function () {
+        confirmAct(li, "me-restore-confirm",
+          "確認交回？系統會通知客戶「感謝耐心等候」。", "確認交回",
+          function () { doCta(c.id, { action: "restore", recordId: c.id }, "已交回智能助手", loadClients); });
+      }));
+    }
+    if (f["進度狀態"] === "跟進中") {
+      acts.appendChild(btn("接管", "ink", function () {
+        confirmAct(li, "me-takeover-confirm",
+          "確認接管？智能助手將暫停回覆，改由人工接手。", "確認接管",
+          function () { doCta(c.id, { action: "takeover", recordId: c.id }, "已接管", loadClients); });
+      }));
+    }
+    li.appendChild(acts);
+    return li;
+  }
+
+  // inline 確認展開(與 openClose 同一 toggle 模式)——給有客戶側效應的動作一個撤回機會。
+  function confirmAct(li, cls, question, okLabel, fn) {
+    var existing = li.querySelector("." + cls);
+    if (existing) { existing.remove(); return; }   // toggle
+    var ch = el("div", "me-chooser " + cls);
+    ch.appendChild(el("span", "me-ch-q", question));
+    ch.appendChild(btn(okLabel, "ok", function () { ch.remove(); fn(); }));
+    ch.appendChild(btn("取消", "ink", function () { ch.remove(); }));
+    li.appendChild(ch);
+  }
+
+  function openPicker(li, id) {
+    var existing = li.querySelector(".me-picker");
+    if (existing) { existing.remove(); return; }   // toggle
+    var pk = el("div", "me-picker");
+    pk.appendChild(el("span", "me-ch-q", "指派給哪位同仁？"));
+    if (!roster.length) pk.appendChild(el("span", "me-ch-q", "名冊載入中，約 30 秒後自動重試，請稍候再開。"));
+    roster.forEach(function (m) {
+      pk.appendChild(btn(m.name, "ink", function () {
+        // toast 明說系統會 LINE 通知被指派的同仁(ux H3)——避免奕溱又去群組手動 @ 人造成雙重通知。
+        doCta(id, { action: "reassign", recordId: id, owner: m.uid },
+              "已指派給 " + m.name + "，系統已透過 LINE 通知對方", loadClients);
+      }));
+    });
+    pk.appendChild(btn("取消", "ink", function () { pk.remove(); }));
+    li.appendChild(pk);
+  }
+
+  var _pollTick = 0;
   function startPoll() {
     if (polling) clearInterval(polling);
+    _pollTick = 0;
     polling = setInterval(function () {
-      if (!document.hidden && !list.querySelector(".me-chooser")) load();
+      if (document.hidden) return;
+      // 有開啟中的結案框/指派選單,或正在打字搜尋 → 本輪略過,避免蓋掉操作或讓搜尋框失焦。
+      if (document.querySelector(".me-chooser") || document.querySelector(".me-picker")) return;
+      var ae = document.activeElement;
+      if (ae && ae.classList && ae.classList.contains("me-csearch")) return;
+      _pollTick += 1;
+      load();
+      // 全所清單資料量大(數百筆)且變化慢:面板健在時每 90 秒刷一次就夠(省行動網路流量,
+      // qa Med);尚未載入成功(首次/錯誤狀態)時每 30 秒重試,配合錯誤文案的承諾。
+      if (isAdmin() && (!clientListEl || _pollTick % 3 === 0)) loadClients();
     }, 30000);
   }
 

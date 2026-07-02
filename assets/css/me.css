@@ -69,3 +69,30 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-toast.ok{background:var(--ok);}
 .me-toast.danger{background:var(--danger);}
 .me-toast.warn{background:var(--warn);}
+
+/* ── 全所客戶清單（僅 admin/developer）──────────────────────────────────────── */
+.me-clients{padding:0 16px 56px;max-width:640px;margin:0 auto;}
+.me-clients:empty{display:none;}
+.me-cctrl{margin:10px 2px 12px;}
+.me-csearch{width:100%;padding:11px 12px;font-family:var(--fb);font-size:15px;color:var(--ink);background:#fff;border:1.5px solid var(--rule2);border-radius:0;-webkit-appearance:none;}
+.me-csearch:focus{outline:none;border-color:var(--accent);}
+.me-chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.me-chip{padding:7px 12px;font-family:var(--fb);font-size:12.5px;font-weight:600;color:var(--ink2);background:var(--panel);border:1.5px solid var(--rule2);cursor:pointer;-webkit-appearance:none;border-radius:0;}
+.me-chip.active{background:var(--ink);color:var(--seal-text);border-color:var(--ink);}
+.me-clist{margin-top:4px;}
+
+/* 客戶卡（沿用 .me-card；第三行放負責人＋上次互動）*/
+.me-ccard .me-l3{display:flex;gap:10px;align-items:baseline;margin-top:5px;font-size:12.5px;flex-wrap:wrap;}
+.me-owner{color:var(--ink2);font-weight:500;}
+.me-owner.me-unowned{color:var(--accent);font-weight:600;}
+.me-status{color:var(--gold);font-weight:500;}
+.me-pri{font-family:var(--fm);font-size:11.5px;font-weight:700;color:var(--accent);white-space:nowrap;}
+.me-acts-wrap{flex-wrap:wrap;}
+.me-acts-wrap .me-btn{flex:1 1 40%;min-width:96px;font-size:14px;padding:11px 6px;}
+
+/* 指派/改派 內嵌選單 */
+.me-picker{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:11px;padding-top:11px;border-top:1px dashed var(--rule2);}
+.me-picker .me-ch-q{width:100%;}
+.me-picker .me-btn{flex:1 1 30%;min-width:92px;font-size:14px;padding:10px 6px;}
+
+.me-more{width:100%;margin-top:4px;}
