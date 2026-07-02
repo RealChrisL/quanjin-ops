@@ -22,6 +22,9 @@
   // 全所客戶清單（admin/developer 專屬）狀態
   var allClients = [], roster = [], clientSearch = "", clientStatus = "all",
       clientShown = 30, clientListEl = null;
+  // 本日待辦行動（戰情室同款：待回=上班時段逾4h、逾期=實際逾24h）＋總結橫幅
+  var todoOwner = "all", todoShown = 30, todoListEl = null, bannerEl = null,
+      ownerSelEl = null, todoSubEl = null;
 
   function isAdmin() { return !!(me && (me.role === "admin" || me.role === "developer")); }
 
@@ -246,6 +249,41 @@
   var STATUS_DISP = { "跟進中": "智能助手跟進中", "人工接管中": "人工接管中", "已完成": "已完成" };
   function statusDisp(s) { return STATUS_DISP[s] || s || ""; }
 
+  // ── 待回/逾期 口徑（照抄戰情室 logic.js，數字才會兩邊一致）────────────────────
+  // 逾期＝實際經過 ≥24h（不分時段）；待回＝TPE 上班時段（一~五 09–18）經過 ≥4h，
+  // 且僅計 智能助手跟進中（人工接管中=同仁自己在辦，不算「客戶在等回覆」）。
+  var TPE_MS = 8 * 3600000;
+  function bizHours(from, to) {
+    if (!from || !to || to <= from) return 0;
+    if ((to - from) > 21 * 86400000) return 189; // >3週直接視為爆表(同戰情室上限)
+    var STEP = 15 * 60000, acc = 0, cur = from;
+    while (cur < to) {
+      var dt = new Date(cur + TPE_MS), d = dt.getUTCDay(), h = dt.getUTCHours() + dt.getUTCMinutes() / 60;
+      if (d >= 1 && d <= 5 && h >= 9 && h < 18) acc += STEP;
+      cur += STEP;
+    }
+    return acc / 3600000;
+  }
+  function levelOf(f, nowMs) {
+    var t = f["最後互動時間"]; if (!t) return "ok";           // 無時間戳→不入待辦(同戰情室)
+    var ts = new Date(t).getTime(); if (isNaN(ts) || ts > nowMs) return "ok";
+    if ((nowMs - ts) / 3600000 >= 24) return "overdue";
+    if (f["進度狀態"] === "人工接管中") return "ok";          // 接管中不算待回
+    return bizHours(ts, nowMs) >= 4 ? "pending" : "ok";
+  }
+  // 一次算好全所彙總＋待辦清單（loadClients 後、每次重繪呼叫）
+  function clientSummary() {
+    var nowMs = Date.now(), pending = [], overdue = [], closable = 0;
+    allClients.forEach(function (c) {
+      var f = c.fields;
+      if (f["進度狀態"] === "人工接管中") closable += 1;
+      var lv = levelOf(f, nowMs);
+      if (lv === "pending") pending.push(c);
+      else if (lv === "overdue") overdue.push(c);
+    });
+    return { total: allClients.length, pending: pending, overdue: overdue, closable: closable };
+  }
+
   function loadClients() {
     if (!meClients || !isAdmin()) return;
     api("/clients").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
@@ -281,9 +319,28 @@
 
   function renderClientsPanel() {
     if (!meClients || !isAdmin()) return;
-    // 首次建立外殼(標題+搜尋+狀態籤),之後只重繪清單 → 打字時搜尋框不失焦。
+    // 首次建立外殼(橫幅+本日待辦+標題+搜尋+狀態籤),之後只重繪內容 → 搜尋框不失焦。
     if (!clientListEl) {
       clear(meClients);
+
+      // 壹 · 總結橫幅（戰情室同款口徑）
+      bannerEl = el("div", "me-banner");
+      meClients.appendChild(bannerEl);
+
+      // 貳 · 本日待辦行動（全所 待回+逾期 佇列，承辦人可篩）
+      var tsec = el("div", "me-sec");
+      tsec.appendChild(el("span", "me-sec-t", "本日待辦行動（全所）"));
+      todoSubEl = el("span", "me-sec-s", "");
+      tsec.appendChild(todoSubEl);
+      meClients.appendChild(tsec);
+      ownerSelEl = el("select", "me-osel");
+      ownerSelEl.addEventListener("change", function () {
+        todoOwner = this.value; todoShown = 30; renderTodo();
+      });
+      meClients.appendChild(ownerSelEl);
+      todoListEl = el("div", "me-clist");
+      meClients.appendChild(todoListEl);
+
       var sec = el("div", "me-sec");
       sec.appendChild(el("span", "me-sec-t", "全所客戶清單"));
       sec.appendChild(el("span", "me-sec-s", ""));
@@ -312,7 +369,60 @@
       clientListEl = el("div", "me-clist");
       meClients.appendChild(clientListEl);
     }
+    renderBannerAndTodo();
     renderClientList();
+  }
+
+  function renderBannerAndTodo() {
+    if (!bannerEl) return;
+    var s = clientSummary();
+    clear(bannerEl);
+    bannerEl.appendChild(el("div", "me-btext",
+      "今日共 " + s.total + " 件進行中案件，" + s.pending.length +
+      " 件待回覆（客戶上班時間已等超過 4 小時）、" + s.overdue.length +
+      " 件逾期（逾 1 天未互動），有 " + s.closable + " 件可推進結案。"));
+    var chips = el("div", "me-bstats");
+    chips.appendChild(el("span", "me-bstat me-b-pend", s.pending.length + " 待回覆"));
+    chips.appendChild(el("span", "me-bstat me-b-over", s.overdue.length + " 逾期"));
+    chips.appendChild(el("span", "me-bstat me-b-close", s.closable + " 可結案"));
+    bannerEl.appendChild(chips);
+    renderTodo(s);
+  }
+
+  function renderTodo(s) {
+    if (!todoListEl) return;
+    s = s || clientSummary();
+    var todo = s.pending.concat(s.overdue);
+    todo.sort(function (a, b) { return idleHours(b.fields) - idleHours(a.fields); }); // 最久沒動在上
+    // 承辦人下拉：全部 + 各承辦人(件數) + 未指派(件數)；保留目前選擇。
+    var byOwner = {};
+    todo.forEach(function (c) { var o = c.owner || "未指派"; byOwner[o] = (byOwner[o] || 0) + 1; });
+    var keep = todoOwner;
+    clear(ownerSelEl);
+    var optAll = el("option", null, "全部承辦人（" + todo.length + "）"); optAll.value = "all";
+    ownerSelEl.appendChild(optAll);
+    Object.keys(byOwner).sort().forEach(function (o) {
+      var op = el("option", null, o + "（" + byOwner[o] + "）"); op.value = o;
+      ownerSelEl.appendChild(op);
+    });
+    ownerSelEl.value = (byOwner[keep] || keep === "all") ? keep : "all";
+    todoOwner = ownerSelEl.value;
+    var arr = todoOwner === "all" ? todo
+            : todo.filter(function (c) { return (c.owner || "未指派") === todoOwner; });
+    if (todoSubEl) todoSubEl.textContent = arr.length + " 件待跟進";
+    clear(todoListEl);
+    if (!arr.length) {
+      todoListEl.appendChild(el("p", "me-done", "✓ 目前沒有待回覆或逾期的案件。"));
+      return;
+    }
+    arr.slice(0, todoShown).forEach(function (c) { todoListEl.appendChild(clientCard(c)); });
+    if (arr.length > todoShown) {
+      var more = btn("載入更多（尚有 " + (arr.length - todoShown) + " 件）", "ink", function () {
+        todoShown += 30; renderTodo();
+      });
+      more.classList.add("me-more");
+      todoListEl.appendChild(more);
+    }
   }
 
   function renderClientList() {

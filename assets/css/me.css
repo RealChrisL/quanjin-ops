@@ -96,3 +96,14 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-picker .me-btn{flex:1 1 30%;min-width:92px;font-size:14px;padding:10px 6px;}
 
 .me-more{width:100%;margin-top:4px;}
+
+/* 總結橫幅（戰情室同款口徑；admin 專屬）*/
+.me-banner{background:var(--panel);border:1.5px solid var(--rule2);border-left:4px solid var(--accent);padding:12px 14px;margin:16px 0 6px;}
+.me-btext{font-size:13px;line-height:1.7;color:var(--ink);}
+.me-bstats{display:flex;gap:14px;margin-top:8px;}
+.me-bstat{font-family:var(--fm);font-size:13px;font-weight:700;}
+.me-b-pend{color:var(--warn);}
+.me-b-over{color:var(--danger);}
+.me-b-close{color:var(--ok);}
+/* 本日待辦（全所）承辦人下拉 */
+.me-osel{width:100%;padding:10px 12px;margin:2px 0 10px;font-family:var(--fb);font-size:14px;color:var(--ink);background:#fff;border:1.5px solid var(--ink);border-radius:0;-webkit-appearance:none;}
