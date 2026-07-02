@@ -56,7 +56,9 @@
   }
 
   function boot() {
-    if (!token) { gate("請從 LINE 開啟全謹提供給您的專屬連結。"); return; }
+    // 無 token 的引導要說「連結在哪」：同仁的專屬連結就在他們與全謹 OA 的對話紀錄裡
+    // （發放時傳的那則），往上滾就找得到 — 不說位置的話同仁會卡住來問人（F2）。
+    if (!token) { gate("請先開啟您的專屬連結：在與全謹的 LINE 對話中往上找「專屬頁面連結」那則訊息，點開一次即可；找不到請向全謹團隊索取。"); return; }
     // 載入中佔位：首次從 LINE 點進來會有 1～3 秒抓資料，空白畫面會被當成連結壞掉。
     clear(list); list.appendChild(el("p", "me-empty", "載入中，請稍候…"));
     api("/whoami").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
