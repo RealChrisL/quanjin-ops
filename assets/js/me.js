@@ -40,6 +40,13 @@
 
   function nameOf(f) { return f["Line 備註名稱"] || f["姓名"] || f["顯示名稱"] || f["LINE顯示名稱"] || "未具名"; }
   function fmtMoney(n) { return "NT$" + Number(n || 0).toLocaleString(); }
+  // 本地(非 UTC)日期字串 YYYY-MM-DD，offsetDays 天後——date input 的 min/max 用；
+  // 用 toISOString 會在接近午夜時差一天(它是 UTC)。
+  function localISO(offsetDays) {
+    var d = new Date(); d.setDate(d.getDate() + offsetDays);
+    var mo = d.getMonth() + 1, dy = d.getDate();
+    return d.getFullYear() + "-" + (mo < 10 ? "0" : "") + mo + "-" + (dy < 10 ? "0" : "") + dy;
+  }
   // 誠實標籤：量的是系統內「最後互動時間」(LINE 端)，看不到 OA／電話聯繫——所以說「上次互動」
   // 而非「已等」(暗示客戶在乾等)，也不標「未更新」(像在指責同仁沒做事)。同仁在 OA 處理過的案子，
   // 系統本來就不知道；按「已聯繫」即可記錄並暫停提醒。
@@ -185,11 +192,57 @@
     acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫"); }));
     acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id); }));
     li.appendChild(acts);
+    // 追蹤提醒列——成功後傳 load（伺服器真相重繪），不能走預設的樂觀移卡（設定提醒≠案件離場）。
+    if (f["進度狀態"] === "人工接管中") li.appendChild(reminderRow(c, load));
     // 兩行分開，11px 手機上比「＝…·…」好讀；並點明「已聯繫」是暫停提醒、明日未結案會再出現，
     // 否則同仁以為按了就永久消失，隔天看到又冒出來會以為是 bug。
     li.appendChild(el("div", "me-hint", "已聯繫：電話或 OA 聯繫過先記錄，暫停提醒；明日未結案會再出現"));
     li.appendChild(el("div", "me-hint", "結案：案件辦完，填成交金額或標未成交"));
     return li;
+  }
+
+  // ── 追蹤提醒（人工接管中卡片限定）────────────────────────────────────────────
+  // 一列：3/7/14 天間隔一鍵切換（active=目前值）＋ 日期欄一次性「下次提醒」設定。
+  // 寫入走 /cta set_interval / set_next_reminder → 伺服器端仍走 LINE 同一組
+  // 「追蹤間隔／下次提醒」指令（單一寫入路徑）；成功後以伺服器真相重繪（after）。
+  function reminderRow(c, after) {
+    var f = c.fields || {};
+    var box = el("div", "me-remind");
+    box.style.marginTop = "10px";
+    var lab = el("div", "me-hint", "追蹤提醒");
+    lab.style.marginTop = "0";
+    box.appendChild(lab);
+    var row = el("div", "me-chips");
+    row.style.marginTop = "6px";
+    var cur = Number(f["提醒間隔天數"] == null ? 0 : f["提醒間隔天數"]);
+    [3, 7, 14].forEach(function (n) {
+      var chip = el("button", "me-chip" + (cur === n ? " active" : ""), n + "天");
+      chip.addEventListener("click", function () {
+        doCta(c.id, { action: "set_interval", recordId: c.id, days: n },
+              "已改為每 " + n + " 天追蹤提醒", after, "更新失敗，請重試");
+      });
+      row.appendChild(chip);
+    });
+    var di = el("input", "me-chip me-date");
+    di.type = "date"; di.min = localISO(1); di.max = localISO(90);  // 明天起、最多 90 天後
+    row.appendChild(di);
+    var setBtn = el("button", "me-chip", "設定");
+    setBtn.addEventListener("click", function () {
+      var v = di.value || "";
+      if (!v) { toast("請先選擇日期", "warn"); return; }
+      var mo = parseInt(v.slice(5, 7), 10), dy = parseInt(v.slice(8, 10), 10);
+      doCta(c.id, { action: "set_next_reminder", recordId: c.id, date: v },
+            "下次提醒已設為 " + mo + " 月 " + dy + " 日", after, "更新失敗，請重試");
+    });
+    row.appendChild(setBtn);
+    var nx = String(f["下次提醒日期"] || "");
+    if (nx.length >= 10) {
+      var cue = el("span", "me-hint", "下次提醒:" + parseInt(nx.slice(5, 7), 10) + "/" + parseInt(nx.slice(8, 10), 10));
+      cue.style.marginTop = "0"; cue.style.alignSelf = "center";
+      row.appendChild(cue);
+    }
+    box.appendChild(row);
+    return box;
   }
 
   // after（可選）：動作成功後的自訂處理。個人清單不傳 → 樂觀移除該卡；全所客戶清單傳
@@ -225,8 +278,9 @@
   }
 
   // 同一時間只允許一個動作在傳送(單人操作;慢網路下防雙觸/雙送)。
+  // errMsg（可選）：失敗且伺服器沒給錯誤訊息時的替代文案（追蹤提醒用「更新失敗，請重試」）。
   var _ctaInProgress = false;
-  function doCta(id, body, okMsg, after) {
+  function doCta(id, body, okMsg, after, errMsg) {
     if (_ctaInProgress) return;
     _ctaInProgress = true;
     api("/cta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
@@ -240,7 +294,7 @@
           // 30 秒後的輪詢會以伺服器真相重繪(已結案進已結案區、已聯繫的回進行中區)。
           var card = list.querySelector('[data-id="' + id + '"]');
           if (card && card.parentNode) card.parentNode.removeChild(card);
-        } else { toast((res.j && res.j.error) || "操作失敗，請重試", "danger"); }
+        } else { toast((res.j && res.j.error) || errMsg || "操作失敗，請重試", "danger"); }
       })
       .catch(function () { _ctaInProgress = false; toast("連線失敗，請重試", "danger"); });
   }
@@ -484,6 +538,8 @@
       }));
     }
     li.appendChild(acts);
+    // 追蹤提醒列（人工接管中限定）——成功後 loadClients 以伺服器真相重繪整個面板。
+    if (f["進度狀態"] === "人工接管中") li.appendChild(reminderRow(c, loadClients));
     return li;
   }
 
@@ -524,7 +580,8 @@
       // 有開啟中的結案框/指派選單,或正在打字搜尋 → 本輪略過,避免蓋掉操作或讓搜尋框失焦。
       if (document.querySelector(".me-chooser") || document.querySelector(".me-picker")) return;
       var ae = document.activeElement;
-      if (ae && ae.classList && ae.classList.contains("me-csearch")) return;
+      // 搜尋框或「下次提醒」日期欄操作中 → 略過本輪，免得重繪把輸入到一半的內容吹掉。
+      if (ae && ae.classList && (ae.classList.contains("me-csearch") || ae.classList.contains("me-date"))) return;
       _pollTick += 1;
       load();
       // 全所清單資料量大(數百筆)且變化慢:面板健在時每 90 秒刷一次就夠(省行動網路流量,
