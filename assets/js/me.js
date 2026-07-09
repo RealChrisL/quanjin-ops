@@ -196,8 +196,10 @@
     if (f["進度狀態"] === "人工接管中") li.appendChild(reminderRow(c, load));
     // 兩行分開，11px 手機上比「＝…·…」好讀；並點明「已聯繫」是暫停提醒、明日未結案會再出現，
     // 否則同仁以為按了就永久消失，隔天看到又冒出來會以為是 bug。
-    li.appendChild(el("div", "me-hint", "已聯繫：電話或 OA 聯繫過先記錄，暫停提醒；明日未結案會再出現"));
+    li.appendChild(el("div", "me-hint", "已聯繫：記錄你已聯繫過客戶，先不提醒"));
     li.appendChild(el("div", "me-hint", "結案：案件辦完，填成交金額或標未成交"));
+    li.appendChild(el("div", "me-hint", "3／7／14天：多久提醒一次（點了會取消已設的指定日期）"));
+    li.appendChild(el("div", "me-hint", "日期＋設定：指定下次提醒日，該日前不提醒，之後恢復頻率"));
     return li;
   }
 
