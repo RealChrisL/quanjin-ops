@@ -189,7 +189,7 @@
     if (w) l2.appendChild(el("span", isTodo ? "me-wait me-overdue" : "me-wait", w));
     li.appendChild(l2);
     var acts = el("div", "me-acts");
-    acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫"); }));
+    acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫，暫停提醒"); }));
     acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id); }));
     li.appendChild(acts);
     // 追蹤提醒列——成功後傳 load（伺服器真相重繪），不能走預設的樂觀移卡（設定提醒≠案件離場）。
@@ -239,7 +239,10 @@
     row.appendChild(setBtn);
     var nx = String(f["下次提醒日期"] || "");
     if (nx.length >= 10) {
-      var cue = el("span", "me-hint", "下次提醒:" + parseInt(nx.slice(5, 7), 10) + "/" + parseInt(nx.slice(8, 10), 10));
+      // 「7 月 25 日」與設定成功 toast 同格式；解析失敗（非 ISO 日期）→ 保留原字串。
+      var nm = parseInt(nx.slice(5, 7), 10), nd = parseInt(nx.slice(8, 10), 10);
+      var cueTxt = (isNaN(nm) || isNaN(nd)) ? "下次提醒：" + nx : "下次提醒：" + nm + " 月 " + nd + " 日";
+      var cue = el("span", "me-hint", cueTxt);
       cue.style.marginTop = "0"; cue.style.alignSelf = "center";
       row.appendChild(cue);
     }
@@ -521,7 +524,7 @@
     li.appendChild(l3);
     var acts = el("div", "me-acts me-acts-wrap");
     acts.appendChild(btn("指派／改派", "ink", function () { openPicker(li, c.id); }));
-    acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫", loadClients); }));
+    acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫，暫停提醒", loadClients); }));
     acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id, loadClients); }));
     // 接管/交回 有客戶可見的側效應(交回→客戶收到「感謝耐心等候」;接管→暖性結尾+助手靜默),
     // 手機誤觸 = 客戶收到莫名訊息 → 先展開 inline 確認(ux H1/H2),並明說客戶端會發生什麼。
