@@ -38,6 +38,67 @@
   function esc(s) { return String(s == null ? "" : s); } // textContent 已防注入，留語意接口
   function clear(node) { while (node && node.firstChild) node.removeChild(node.firstChild); }
 
+  /* ---------- Asana 進度徽章（Phase 1.5，唯讀、延後填入） ----------
+   * 只有帶 Asana專案GID 的紀錄（今天 27 筆）才會取進度；其餘 1,456 筆完全不觸發，
+   * 版面與過去一致。in-page Map 快取以 recordId 為鍵，避免 diffUpdate 重繪時重打；
+   * 佇列節流至多 ~2 併發（27 筆量級，保持 dumb-simple）。代理不可達 / ok:false →
+   * 不顯示任何字（不放錯誤字、不放佔位符）。badge DOM 以 recordId 定位，非同步安全。 */
+  var ASANA = { cache: {}, queue: [], active: 0, MAX: 2 };
+
+  function asanaPump() {
+    while (ASANA.active < ASANA.MAX && ASANA.queue.length) {
+      var rid = ASANA.queue.shift();
+      (function (rid) {
+        ASANA.active++;
+        var api = (window.QJ && QJ.airtable && QJ.airtable.asanaProgress)
+          ? QJ.airtable.asanaProgress(rid)
+          : Promise.resolve(null);
+        api.then(function (res) {
+          // 快取結果（含「無資料」），命中 ok:true 才存數字；其餘存 null → 不再重打也不顯示
+          ASANA.cache[rid] = (res && res.ok === true) ? res : null;
+        }).catch(function () {
+          ASANA.cache[rid] = null;
+        }).then(function () {
+          asanaPaint(rid);
+          ASANA.active--;
+          asanaPump();
+        });
+      })(rid);
+    }
+  }
+
+  /* 把某 recordId 的進度徽章繪到目前 DOM 上所有對應的佔位節點（可能有多列）。 */
+  function asanaPaint(rid) {
+    var res = ASANA.cache[rid];
+    var nodes = document.querySelectorAll('.cta-asana-badge[data-asana-id="' + rid + '"]');
+    for (var i = 0; i < nodes.length; i++) {
+      var node = nodes[i];
+      if (res && res.ok === true && res.total > 0) {
+        node.textContent = "🗂 " + res.done + "/" + res.total + "（" + res.pct + "%）";
+        node.style.display = "";
+      } else {
+        // ok:false / null / total 0 → 不顯示（移除佔位，版面回歸無徽章）
+        if (node.parentNode) node.parentNode.removeChild(node);
+      }
+    }
+  }
+
+  /* 在 host 內為帶 GID 的紀錄掛一個空徽章佔位並排入取進度佇列（已快取則直接繪）。 */
+  function attachAsanaBadge(host, rec) {
+    var rid = (rec && rec.id) ? rec.id : "";
+    if (!rid || !rec.asanaGid) return;
+    var badge = el("span", "cta-chip cta-asana-badge");
+    badge.setAttribute("data-asana-id", rid);
+    badge.style.display = "none"; // 取到數字前隱藏，避免空白閃爍
+    host.appendChild(badge);
+    if (Object.prototype.hasOwnProperty.call(ASANA.cache, rid)) {
+      asanaPaint(rid); // 已有結果（含無資料）：直接繪／移除，不重打
+    } else {
+      ASANA.queue.push(rid);
+      asanaPump();
+    }
+  }
+
   function fmtMoney(n) {
     if (n == null || isNaN(n)) return "—";
     return "NT$ " + Math.round(n).toLocaleString("en-US");
@@ -301,6 +362,16 @@
     if (rec.電話) { var ph = el("a", "cta-chip cta-phone", "📞 " + rec.電話); ph.setAttribute("href", "tel:" + rec.電話); extra.appendChild(ph); }
     var cv = (window.QJ && QJ.caseValue) ? QJ.caseValue(rec.案件類型) : null;
     if (cv) extra.appendChild(el("span", "cta-chip cta-value", "約值 NT$" + cv.toLocaleString("en-US")));
+    // Asana（Phase 1.5，唯讀）：有連結 → 開新分頁小連結；有 GID → 延後填入進度徽章。
+    // 兩者皆缺 → 完全不動（1,456 筆無 GID 的紀錄版面不變）。
+    if (rec.asanaUrl) {
+      var al = el("a", "cta-chip cta-asana-link", "🗂 Asana");
+      al.setAttribute("href", rec.asanaUrl);
+      al.setAttribute("target", "_blank");
+      al.setAttribute("rel", "noopener noreferrer");
+      extra.appendChild(al);
+    }
+    attachAsanaBadge(extra, rec);
     if (extra.childNodes.length) meta.appendChild(extra);
     var todos = rec.待辦事項 ? String(rec.待辦事項).replace(/\s*\n+\s*/g, "；").trim() : "";
     if (todos) {

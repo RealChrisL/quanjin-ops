@@ -295,6 +295,8 @@
       成交金額: toNumber(mapped(f, fieldMap, "成交金額")),
       結案日期: toDate(mapped(f, fieldMap, "結案日期")),
       案號:     toStr(mapped(f, fieldMap, "案號")),
+      asanaGid: toStr(mapped(f, fieldMap, "asanaGid")),
+      asanaUrl: toStr(mapped(f, fieldMap, "asanaUrl")),
       案件說明: toStr(mapped(f, fieldMap, "案件說明")),
       待辦事項: toStr(mapped(f, fieldMap, "待辦事項")),
       首次進線時間: toDate(mapped(f, fieldMap, "首次進線時間")),
@@ -499,6 +501,22 @@
    *      內部同仁名，無客戶 PII，需授權）。失敗回 null → 面板降級為無「結案者」欄。 ---- */
   function fetchCloseReview() { return _proxyGet("/close-review"); }
 
+  /* ---- Asana 進度（Phase 1.5，唯讀）：GET /asana/progress?recordId=rec…（需授權，
+   *      個人 token 級）。回 {ok:true, done, total, pct, url?} 或 {ok:false, reason}；
+   *      非2xx／網路失敗／解析失敗 → 回 null，呼叫端一律降級為「不顯示」。 ---- */
+  function asanaProgress(recordId) {
+    var rid = String(recordId == null ? "" : recordId).trim();
+    if (!rid) { return Promise.resolve(null); }
+    var base = (QJ.proxyUrl ? QJ.proxyUrl() : "");
+    if (!base) { return Promise.resolve(null); }
+    var url = base + "/asana/progress?recordId=" + encodeURIComponent(rid);
+    return fetch(url, { headers: {
+      "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""),
+      "ngrok-skip-browser-warning": "1"
+    } }).then(function (r) { return r.ok ? r.json() : null; })
+        .catch(function () { return null; });
+  }
+
   /* ---- 寫入代理存活：GET /health（免授權，純存活探測）。回 true=可寫入 / false=不可達。 ---- */
   function fetchHealth() {
     var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/health";
@@ -521,6 +539,7 @@
     fetchStaff: fetchStaff,
     fetchCloseReview: fetchCloseReview,
     fetchHealth: fetchHealth,
+    asanaProgress: asanaProgress,
     _normalize: _normalize,
     // 對外曝露 reconcile（logic.js 合約也定義同名，但 raw→date 取最新邏輯落在此）
     reconcileLastInteraction: reconcileLastInteraction

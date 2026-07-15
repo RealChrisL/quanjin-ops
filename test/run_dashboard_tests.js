@@ -214,6 +214,7 @@ function test_helpers() {
   var fieldMap = {
     委託人: "姓名", 狀態: "進度狀態", 成交金額: "成交金額", 結案日期: "結案日期",
     承辦人: "委派團隊成員", 案件類型: "案件類型", lastInteractionCandidates: ["最後互動時間"],
+    asanaGid: "Asana專案GID", asanaUrl: "Asana專案連結",
   };
   var norm = t._normalize({
     id: "recX",
@@ -221,6 +222,7 @@ function test_helpers() {
       "姓名": "陳小姐", "進度狀態": "跟進中", "成交金額": "30,000",
       "結案日期": "2026-06-20", "委派團隊成員": XU_FULL, "案件類型": "遺囑",
       "最後互動時間": "2026-06-24T10:00:00.000Z",
+      "Asana專案GID": "1201234567890", "Asana專案連結": "https://app.asana.com/0/1201234567890",
     },
   }, fieldMap);
   check("_normalize id/委託人/狀態", norm.id === "recX" && norm.委託人 === "陳小姐" && norm.狀態 === "跟進中", norm);
@@ -229,6 +231,14 @@ function test_helpers() {
         norm.結案日期 instanceof Date && norm.lastInteraction instanceof Date, norm);
   check("_normalize lastInteractionField records source col",
         norm.lastInteractionField === "最後互動時間", norm.lastInteractionField);
+  // Phase 1.5 — Asana keys land on NormRecord end-to-end (mirror of 案號 mapping)
+  check("_normalize asanaGid mapped from Asana專案GID", norm.asanaGid === "1201234567890", norm.asanaGid);
+  check("_normalize asanaUrl mapped from Asana專案連結",
+        norm.asanaUrl === "https://app.asana.com/0/1201234567890", norm.asanaUrl);
+  // absent Asana fields → empty string (the 1,456 no-GID records: ZERO behavior change)
+  var normBare = t._normalize({ id: "recY", fields: { "姓名": "王先生" } }, fieldMap);
+  check("_normalize asanaGid absent → '' (no-GID records unchanged)", normBare.asanaGid === "", normBare.asanaGid);
+  check("_normalize asanaUrl absent → ''", normBare.asanaUrl === "", normBare.asanaUrl);
 }
 
 /* ===========================================================================
