@@ -208,6 +208,11 @@
       ol.setAttribute("rel", "noopener noreferrer");
       acts.appendChild(ol);
     }
+    // 🗂 Asana 專案深連結(自動開案回寫的 Asana專案連結;無值不渲染)
+    var asn = (f["Asana專案連結"] || "").trim();
+    if (asn) { var b = el("a", "me-chip me-oa-link", "🗂 開啟 Asana");
+      b.href = asn; b.target = "_blank"; b.rel = "noopener noreferrer";
+      acts.appendChild(b); }
     li.appendChild(acts);
     // 追蹤提醒列——成功後傳 load（伺服器真相重繪），不能走預設的樂觀移卡（設定提醒≠案件離場）。
     if (f["進度狀態"] === "人工接管中") li.appendChild(reminderRow(c, load));

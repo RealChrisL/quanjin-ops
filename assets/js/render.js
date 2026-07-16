@@ -497,6 +497,14 @@
       qa.setAttribute("title", "開啟 LINE OA 對話");
       tdName.appendChild(qa);
     }
+    if (rec.asanaUrl) {
+      var qas = el("a", "queue-oa-link", "🗂");
+      qas.setAttribute("href", rec.asanaUrl);
+      qas.setAttribute("target", "_blank");
+      qas.setAttribute("rel", "noopener noreferrer");
+      qas.setAttribute("title", "開啟 Asana 專案");
+      tdName.appendChild(qas);
+    }
     tr.appendChild(tdName);
 
     // 案件類型
