@@ -487,6 +487,16 @@
     var tdName = el("td");
     tdName.appendChild(el("span", "client-name", clientLabel(rec.委託人)));
     if (rec.電話) tdName.appendChild(el("a", "client-phone", "📞 " + rec.電話)).setAttribute("href", "tel:" + rec.電話);
+    // LINE OA 對話深連結(有 OA聊天ID 才渲染;圖示型,保持表格緊湊)
+    var qOa = (window.QJ && QJ.oaChatUrl) ? QJ.oaChatUrl(rec.oaChatId) : "";
+    if (qOa) {
+      var qa = el("a", "queue-oa-link", "💬");
+      qa.setAttribute("href", qOa);
+      qa.setAttribute("target", "_blank");
+      qa.setAttribute("rel", "noopener noreferrer");
+      qa.setAttribute("title", "開啟 LINE OA 對話");
+      tdName.appendChild(qa);
+    }
     tr.appendChild(tdName);
 
     // 案件類型
