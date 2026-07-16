@@ -371,6 +371,16 @@
       al.setAttribute("rel", "noopener noreferrer");
       extra.appendChild(al);
     }
+    // LINE OA 對話深連結（唯讀、零查詢）：有 OA聊天ID → 一鍵開 OA Manager 該客對話。
+    // 未同步（~59%）→ 不渲染；點擊需本人已登入 OA Manager（連結不帶秘密）。
+    var oaHref = (window.QJ && QJ.oaChatUrl) ? QJ.oaChatUrl(rec.oaChatId) : "";
+    if (oaHref) {
+      var ol = el("a", "cta-chip cta-oa-link", "💬 LINE對話");
+      ol.setAttribute("href", oaHref);
+      ol.setAttribute("target", "_blank");
+      ol.setAttribute("rel", "noopener noreferrer");
+      extra.appendChild(ol);
+    }
     attachAsanaBadge(extra, rec);
     if (extra.childNodes.length) meta.appendChild(extra);
     var todos = rec.待辦事項 ? String(rec.待辦事項).replace(/\s*\n+\s*/g, "；").trim() : "";

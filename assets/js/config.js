@@ -28,6 +28,15 @@ QJ.SETTINGS = {
 /* ---- localStorage 鍵名 ---- */
 QJ.LS = { pat:"qj.pat", baseId:"qj.baseId", tableId:"qj.tableId", fieldMap:"qj.fieldMap", proxyUrl:"qj.proxyUrl", proxyToken:"qj.proxyToken" };
 
+/* ---- LINE OA Manager 對話深連結：chat.line.biz/{botId}/chat/{OA聊天ID}。
+ * botId 非機密（操作員網址列天天可見）；連結需本人已登入且為該 OA 操作員才打得開。 ---- */
+QJ.OA_BOT_ID = "Ua835fb338982510049d22f8bfea446f9";
+QJ.oaChatUrl = function (chatId) {
+  return (chatId && QJ.OA_BOT_ID)
+    ? "https://chat.line.biz/" + QJ.OA_BOT_ID + "/chat/" + encodeURIComponent(chatId)
+    : "";
+};
+
 /* ---- 後端寫回代理（bot-proxy）：設定後 CTA 走安全寫回（鎖／側效／稽核）；未設 → 直連 Airtable ---- */
 QJ.proxyUrl = function () { return (QJ.SETTINGS.proxyUrl || "").replace(/\/+$/, ""); }; // 硬編，不再由使用者填
 QJ.proxyToken = function () { try { return window.localStorage.getItem(QJ.LS.proxyToken) || ""; } catch (e) { return ""; } };
@@ -54,6 +63,7 @@ QJ.FIELD_MAP_DEFAULTS = {
   案號:     ["案號","案件編號","Case No","編號"],
   asanaGid: ["Asana專案GID"],
   asanaUrl: ["Asana專案連結"],
+  oaChatId: ["OA聊天ID"],
   案件說明: ["需求摘要","對話摘要","案件說明","摘要","Notes"],
   待辦事項: ["待辦事項","待辦","代辦事項","To-Do","Todos"],
   首次進線時間: ["首次進線時間","首次來訊時間","建立時間","Created"],

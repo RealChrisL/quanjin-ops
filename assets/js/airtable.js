@@ -297,6 +297,7 @@
       案號:     toStr(mapped(f, fieldMap, "案號")),
       asanaGid: toStr(mapped(f, fieldMap, "asanaGid")),
       asanaUrl: toStr(mapped(f, fieldMap, "asanaUrl")),
+      oaChatId: toStr(mapped(f, fieldMap, "oaChatId")),
       案件說明: toStr(mapped(f, fieldMap, "案件說明")),
       待辦事項: toStr(mapped(f, fieldMap, "待辦事項")),
       首次進線時間: toDate(mapped(f, fieldMap, "首次進線時間")),

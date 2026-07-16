@@ -214,7 +214,7 @@ function test_helpers() {
   var fieldMap = {
     委託人: "姓名", 狀態: "進度狀態", 成交金額: "成交金額", 結案日期: "結案日期",
     承辦人: "委派團隊成員", 案件類型: "案件類型", lastInteractionCandidates: ["最後互動時間"],
-    asanaGid: "Asana專案GID", asanaUrl: "Asana專案連結",
+    asanaGid: "Asana專案GID", asanaUrl: "Asana專案連結", oaChatId: "OA聊天ID",
   };
   var norm = t._normalize({
     id: "recX",
@@ -238,6 +238,7 @@ function test_helpers() {
   // absent Asana fields → empty string (the 1,456 no-GID records: ZERO behavior change)
   var normBare = t._normalize({ id: "recY", fields: { "姓名": "王先生" } }, fieldMap);
   check("_normalize asanaGid absent → '' (no-GID records unchanged)", normBare.asanaGid === "", normBare.asanaGid);
+  check("_normalize oaChatId absent → '' (unsynced records unchanged)", normBare.oaChatId === "", normBare.oaChatId);
   check("_normalize asanaUrl absent → ''", normBare.asanaUrl === "", normBare.asanaUrl);
 }
 
