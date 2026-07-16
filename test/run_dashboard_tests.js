@@ -431,6 +431,53 @@ function test_closeReview() {
         Array.isArray(em.closedRecs) && em.closedRecs.length === 0, em.closedRecs);
 }
 
+/* ===========================================================================
+ * TASK OA — LINE OA Manager 深連結 builder (Wave-1)
+ *   war-room QJ.oaChatUrl (config.js, loaded above) — URL shape / empty-guard /
+ *   encoding — PLUS a DRIFT pin: me.js carries its OWN self-contained oaChatUrl
+ *   (me.js does not load config.js), so both must produce the IDENTICAL string
+ *   for a sample id or the two dashboards diverge silently.
+ * ======================================================================== */
+function test_oaChatUrl() {
+  var SAMPLE = "Uclientchatid00000000000000000001";
+  var BOT = "Ua835fb338982510049d22f8bfea446f9";   // public OA bot id (both files)
+
+  // (1) URL shape
+  check("OA war-room oaChatUrl shape",
+        QJ.oaChatUrl(SAMPLE) === "https://chat.line.biz/" + BOT + "/chat/" + SAMPLE,
+        QJ.oaChatUrl(SAMPLE));
+  // (2) empty-guard — null / "" / whitespace-ish falsy → "" (no bare bot-id URL)
+  check("OA war-room empty-guard: '' → ''", QJ.oaChatUrl("") === "");
+  check("OA war-room empty-guard: null → ''", QJ.oaChatUrl(null) === "");
+  check("OA war-room empty-guard: undefined → ''", QJ.oaChatUrl(undefined) === "");
+  // (3) encoding — a space becomes %20 (encodeURIComponent runs on the id)
+  check("OA war-room encodes id (space → %20)",
+        QJ.oaChatUrl("U abc").indexOf("%20") !== -1, QJ.oaChatUrl("U abc"));
+
+  // (4) DRIFT pin — extract me.js's self-contained oaChatUrl + OA_BOT_ID, eval in a
+  // fresh sandbox (me.js is an IIFE that assumes a browser DOM, so we cannot load
+  // it wholesale — mirror the harness vm pattern and eval just the two lines).
+  var meSrc = fs.readFileSync(path.join(__dirname, "..", "assets", "js", "me.js"), "utf8");
+  var botM = meSrc.match(/var\s+OA_BOT_ID\s*=\s*"([^"]+)"/);
+  var fnM = meSrc.match(/function\s+oaChatUrl\s*\([\s\S]*?\}\s*$/m);
+  check("OA drift: me.js OA_BOT_ID literal found", !!botM, "regex miss");
+  check("OA drift: me.js oaChatUrl fn found", !!fnM, "regex miss");
+  if (botM && fnM) {
+    check("OA drift: me.js OA_BOT_ID === war-room QJ.OA_BOT_ID",
+          botM[1] === QJ.OA_BOT_ID, botM[1] + " vs " + QJ.OA_BOT_ID);
+    var sandbox = {};
+    vm.runInNewContext(
+      "var OA_BOT_ID=" + JSON.stringify(botM[1]) + ";\n" + fnM[0] +
+      "\nthis.__oa = oaChatUrl;", sandbox);
+    var ids = [SAMPLE, "U abc", "Uf9a2", ""];
+    for (var i = 0; i < ids.length; i++) {
+      check("OA drift: me.js oaChatUrl === QJ.oaChatUrl for " + JSON.stringify(ids[i]),
+            sandbox.__oa(ids[i]) === QJ.oaChatUrl(ids[i]),
+            sandbox.__oa(ids[i]) + " vs " + QJ.oaChatUrl(ids[i]));
+    }
+  }
+}
+
 /* ---- run ---- */
 console.log("=== quanjin-ops dashboard test harness ===");
 test_analyze();
@@ -442,6 +489,7 @@ test_maxWaitDays();
 test_dealOutcomeSplit();
 test_honestRecsPanel();
 test_closeReview();
+test_oaChatUrl();
 console.log("");
 if (FAILS.length) {
   console.log("FAILED: " + FAILS.length + " — " + safe(FAILS));

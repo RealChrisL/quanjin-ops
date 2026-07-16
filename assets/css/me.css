@@ -79,6 +79,9 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-chips{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
 .me-chip{padding:7px 12px;font-family:var(--fb);font-size:12.5px;font-weight:600;color:var(--ink2);background:var(--panel);border:1.5px solid var(--rule2);cursor:pointer;-webkit-appearance:none;border-radius:0;}
 .me-chip.active{background:var(--ink);color:var(--seal-text);border-color:var(--ink);}
+/* OA 對話深連結晶片（<a>，位於 .me-acts flex 列，與按鈕同高、無底線、不搶版面）*/
+.me-oa-link{display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;padding:12px 12px;font-size:13px;text-decoration:none;white-space:nowrap;}
+.me-oa-link:active{transform:translateY(1px);}
 .me-clist{margin-top:4px;}
 
 /* 客戶卡（沿用 .me-card；第三行放負責人＋上次互動）*/

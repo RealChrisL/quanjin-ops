@@ -6,6 +6,12 @@
   var PROXY = "https://bribe-handwoven-bobbed.ngrok-free.dev";  // 同 config.js，公開、無密
   var LS = "qj.me.token";
 
+  // LINE OA 對話深連結（me.js 不載 config.js，故自帶）。OA_BOT_ID = 公開 bot id
+  // （操作員網址列可見），非機密。無 OA聊天ID → 回空字串 → 不渲染晶片。
+  var OA_BOT_ID = "Ua835fb338982510049d22f8bfea446f9";
+  function oaChatUrl(id){ id = (id == null ? "" : String(id)).trim();
+    return id ? "https://chat.line.biz/" + OA_BOT_ID + "/chat/" + encodeURIComponent(id) : ""; }
+
   // token：?k=（bot 連結帶入）→ 存起來 → 清掉網址；否則用 localStorage
   try {
     var u = new URL(location.href), qk = u.searchParams.get("k");
@@ -191,6 +197,17 @@
     var acts = el("div", "me-acts");
     acts.appendChild(btn("已聯繫", "ink", function () { doCta(c.id, { action: "contacted", recordId: c.id }, "已記錄聯繫，暫停提醒"); }));
     acts.appendChild(btn("結案", "accent", function () { openClose(li, c.id); }));
+    // LINE OA 對話深連結（唯讀、零查詢）：有 OA聊天ID → 一鍵開 OA Manager 該客對話。
+    // 未同步 → 不渲染（該列版面 byte-identical）。點擊需本人已登入 OA Manager（連結不帶秘密）。
+    // /me 已篩成本人被指派的人工接管中案件＝天然狀態閘，無需額外 gating。
+    var oaHref = oaChatUrl(f["OA聊天ID"]);
+    if (oaHref) {
+      var ol = el("a", "me-chip me-oa-link", "💬 LINE對話");
+      ol.setAttribute("href", oaHref);
+      ol.setAttribute("target", "_blank");
+      ol.setAttribute("rel", "noopener noreferrer");
+      acts.appendChild(ol);
+    }
     li.appendChild(acts);
     // 追蹤提醒列——成功後傳 load（伺服器真相重繪），不能走預設的樂觀移卡（設定提醒≠案件離場）。
     if (f["進度狀態"] === "人工接管中") li.appendChild(reminderRow(c, load));
