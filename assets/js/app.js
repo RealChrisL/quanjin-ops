@@ -121,11 +121,91 @@
     });
   }
 
+  /* =============================================================================
+   * 姓名搜尋 + 已結案自動補查（AUTO-FALLBACK）
+   *
+   * 兩段式：① 輸入即在「已載入的進行中紀錄」本地切片（零網路）；② debounce 後若本地
+   * 零命中，才自動打 ONE 支伺服器端已結案查詢。已完成紀錄約 1,200 筆，整批載入會灌爆
+   * 佇列／KPI／圖譜，所以永遠隨選、永不預載、永不翻頁。
+   * 防洪三道：debounce 500ms／同一字串只查一次（lastClosedQuery）／同時只允許一支在飛。
+   * ========================================================================== */
+  var search = { q: "", timer: null, inflight: false, lastClosedQuery: null };
+  var SEARCH_DEBOUNCE_MS = 500;
+
+  function onSearchInput(v) {
+    search.q = String(v == null ? "" : v).trim();
+    QJ.render.applyFilters && QJ.render.applyFilters({ q: search.q });
+    if (search.timer) { clearTimeout(search.timer); search.timer = null; }
+    if (!search.q) {
+      // 清空 → 收掉灰卡區，並讓下次同字串可以重查
+      search.lastClosedQuery = null;
+      QJ.render.hideClosedResults && QJ.render.hideClosedResults();
+      return;
+    }
+    search.timer = setTimeout(maybeSearchClosed, SEARCH_DEBOUNCE_MS);
+  }
+
+  function maybeSearchClosed() {
+    var q = search.q;
+    if (!q) return;
+    // 進行中清單找得到 → 不查已結案（灰卡是「找不到」時才該出現的第二段）
+    var hits = QJ.render.localMatchCount ? QJ.render.localMatchCount(q) : 0;
+    if (hits > 0) { QJ.render.hideClosedResults && QJ.render.hideClosedResults(); return; }
+    if (search.lastClosedQuery === q) return;   // 同一字串已查過，別重打
+    if (search.inflight) return;
+    runClosedSearch(q);
+  }
+
+  function runClosedSearch(q) {
+    if (!QJ.airtable.searchClosed) return;
+    search.inflight = true;
+    search.lastClosedQuery = q;
+    QJ.render.renderClosedResults && QJ.render.renderClosedResults({ query: q, loading: true });
+    QJ.airtable.searchClosed(q).then(function (recs) {
+      search.inflight = false;
+      if (search.q !== q) return;               // 使用者已改字串 → 丟棄過期結果
+      QJ.render.renderClosedResults && QJ.render.renderClosedResults({ query: q, records: recs || [] });
+    }).catch(function (e) {
+      search.inflight = false;
+      search.lastClosedQuery = null;            // 失敗不快取，讓使用者可重試
+      if (search.q !== q) return;
+      log("查詢已結案", false, "查詢失敗（" + ((e && e.status) || "網路") + "）");
+      QJ.render.renderClosedResults && QJ.render.renderClosedResults({
+        query: q,
+        error: "已結案紀錄查詢失敗，請稍後再試；若持續發生，請告知全謹系統管理人員。"
+      });
+    });
+  }
+
+  /* 開回：已完成 → 人工接管中。刻意「直寫 Airtable 欄位」而非走 proxy 的 restore／takeover
+   * ——那兩條都是 bot verb，會推播訊息給客戶（restore 必推「感謝耐心等候」，takeover 非
+   * 上班時段推關懷語）。開回是內部找回紀錄的動作，客戶端必須零側效。
+   * 失敗只影響這張卡（狀態未變更），不動佇列、不做樂觀更新。 */
+  function doReopen(id, btn) {
+    if (!id || !QJ.airtable.reopenRecord) return;
+    var nm = (btn && btn.getAttribute("data-name")) || "此案";
+    if (!window.confirm("重新開啟「" + nm + "」？案件將轉為人工接管中，可重新指派承辦人。系統不會通知客戶。")) return;
+    QJ.render.setClosedCardState && QJ.render.setClosedCardState(id, "busy", "開回中…");
+    QJ.airtable.reopenRecord(id).then(function () {
+      QJ.render.setClosedCardState && QJ.render.setClosedCardState(id, "done", "已開回，可在上方客戶清單指派承辦人。");
+      log("開回案件", true, "已改為人工接管中（直寫 Airtable，未通知客戶）");
+      toast("✓ 已開回，案件已轉人工接管，可重新指派（客戶未收到通知）。", "ok");
+      refresh(true);   // 以伺服器真相重抓 → 該筆即出現在進行中清單
+    }).catch(function (e) {
+      var code = (e && e.status) || "網路";
+      QJ.render.setClosedCardState && QJ.render.setClosedCardState(id, "err",
+        "開回失敗（" + code + "）。案件狀態未變更，請重試。");
+      log("開回案件", false, "寫回失敗（" + code + "）狀態未變更");
+    });
+  }
+
   function onClick(ev) {
     var btn = ev.target.closest ? ev.target.closest("[data-cta]") : null;
     if (!btn) return;
     var cta = btn.getAttribute("data-cta"), id = btn.getAttribute("data-id");
     if (!id) return;
+
+    if (cta === "reopen") { doReopen(id, btn); return; }
 
     if (cta === "amount" || cta === "close") {
       var host = (btn.closest && (btn.closest(".queue-cta-cell") || btn.closest(".cta-ctrls") || btn.closest(".dl-row") || btn.closest(".nudge-row") || btn.closest(".review-row"))) || btn.parentNode;
@@ -237,6 +317,12 @@
     ["slice-type", "slice-owner", "slice-status"].forEach(function (id) {
       var el = document.getElementById(id); if (el) el.addEventListener("change", onSliceChange);
     });
+    var qbox = document.getElementById("queue-q");
+    if (qbox) {
+      qbox.addEventListener("input", function () { onSearchInput(this.value); });
+      // type=search 的原生清除鈕在部分瀏覽器只發 search 事件，補綁一次確保清空生效
+      qbox.addEventListener("search", function () { onSearchInput(this.value); });
+    }
     document.addEventListener("visibilitychange", function () { if (!document.hidden && state.analysis && !document.querySelector(".inline-edit")) refresh(true); });
 
     setStatus("連線中…", false);

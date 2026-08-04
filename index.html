@@ -8,7 +8,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
-  <link rel="stylesheet" href="./assets/css/styles.css?v=20260716c">
+  <link rel="stylesheet" href="./assets/css/styles.css?v=20260804a">
 </head>
 <body>
 
@@ -62,6 +62,12 @@
       <h2 id="queue-heading" class="sec-head"><span class="sec-num">貳</span>客戶清單</h2>
       <div class="queue-layout">
         <div class="queue-main">
+          <!-- 姓名搜尋：先篩進行中清單；查無命中時自動補查已結案紀錄（隨選單次查詢） -->
+          <div class="queue-search" role="search">
+            <input id="queue-q" class="queue-q" type="search" inputmode="search"
+                   placeholder="搜尋客戶姓名…" autocomplete="off" aria-label="搜尋客戶姓名">
+            <span class="closed-hint-chip" title="進行中清單找不到時，會自動查已結案紀錄">🔍 含已結案</span>
+          </div>
           <div class="slicers" role="group" aria-label="客戶篩選">
             <label class="slice-field"><span class="slice-label">類型</span>
               <select id="slice-type" class="slice-select"></select></label>
@@ -73,6 +79,8 @@
           <div class="queue-scroll">
             <table id="queue" class="queue"></table>
           </div>
+          <!-- 已結案搜尋結果（灰卡）：不進 state.queue、不計入任何 KPI／徽章／圖譜 -->
+          <div id="closed-results" class="closed-results" hidden></div>
         </div>
         <aside id="deal-track" class="deal-track" aria-label="本月結案進度"></aside>
       </div>
@@ -124,10 +132,10 @@
   <!-- 載入順序（defer）：config → auth → airtable → logic → charts → render → app -->
   <script src="./assets/js/config.js?v=20260716a" defer></script>
   <script src="./assets/js/auth.js?v=20260702a" defer></script>
-  <script src="./assets/js/airtable.js?v=20260716a" defer></script>
+  <script src="./assets/js/airtable.js?v=20260804a" defer></script>
   <script src="./assets/js/logic.js?v=20260702a" defer></script>
   <script src="./assets/js/charts.js?v=20260702a" defer></script>
-  <script src="./assets/js/render.js?v=20260716d" defer></script>
-  <script src="./assets/js/app.js?v=20260702a" defer></script>
+  <script src="./assets/js/render.js?v=20260804a" defer></script>
+  <script src="./assets/js/app.js?v=20260804a" defer></script>
 </body>
 </html>

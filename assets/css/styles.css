@@ -435,6 +435,55 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 }
 .empty-state .empty-mark { color:var(--ok); font-weight:700; }
 
+/* =============================================================================
+ * 姓名搜尋列 + 已結案灰卡
+ * 灰卡刻意「去強調」：1px 細框（非 2px 墨線）、panel2 底、無左緣色條、整卡 opacity .85。
+ * 它不是待辦，是使用者主動找人時補回畫面的歷史紀錄——不該和進行中案件搶視覺權重。
+ * ========================================================================== */
+.queue-search { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:10px; }
+.queue-q {
+  flex:1 1 260px; min-width:0;
+  border:2px solid var(--ink); background:var(--panel); color:var(--ink);
+  padding:7px 10px; font-family:var(--fb); font-size:13.5px;
+  border-radius:var(--radius);
+}
+.queue-q:focus { border-color:var(--accent); outline:none; }
+.queue-q::placeholder { color:var(--faint); }
+.closed-hint-chip {
+  font-size:12px; color:var(--faint); white-space:nowrap;
+  border:1px dashed var(--rule2); padding:4px 8px; cursor:help;
+}
+
+.closed-results { margin-top:12px; display:flex; flex-direction:column; gap:10px; }
+.cc-note { margin:0; font-size:13px; color:var(--ink2); line-height:1.7; }
+.cc-note-err { color:var(--danger); }
+
+.closed-card {
+  border:1px solid var(--rule2);
+  background:var(--panel2);
+  padding:10px 12px;
+  opacity:.85;
+}
+.closed-card[data-state="done"] { opacity:1; border-color:var(--ok); }
+.cc-head { display:flex; align-items:baseline; gap:8px; flex-wrap:wrap; }
+.cc-name { font-family:var(--fd); font-size:15px; font-weight:600; color:var(--ink); }
+/* chip：純文字，不掛 .pill 色底——已結案是狀態陳述，不是警示 */
+.cc-chip { font-size:12px; color:var(--faint); }
+.cc-sub { font-size:12px; color:var(--faint); margin-top:1px; }
+.cc-meta { font-size:12.5px; color:var(--ink2); margin-top:5px; }
+.cc-acts { display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap; }
+.cc-link { font-size:12.5px; color:var(--gold); text-decoration:none; border-bottom:1px solid var(--rule2); }
+.cc-link:hover { color:var(--accent); }
+.cc-reopen {
+  background:var(--panel); color:var(--ink);
+  border:1px solid var(--ink2); padding:5px 12px; font-size:12.5px;
+}
+.cc-reopen:hover:not(:disabled) { background:var(--ink); color:var(--seal-text); }
+.cc-reopen:disabled { opacity:.5; cursor:default; }
+.cc-msg { margin:8px 0 0; font-size:12.5px; color:var(--ink2); }
+.cc-msg-ok { color:var(--ok); font-weight:700; }
+.cc-msg-err { color:var(--danger); font-weight:700; }
+
 /* 成交進度欄 */
 .deal-track {
   border:2px solid var(--ink);
@@ -645,6 +694,9 @@ table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
   /* 觸控目標 ≥44px（謝代書手機操作） */
   .cta, .btn-ink, .slice-select, .reassign-select, .chart-time-sel { min-height:44px; }
   .cta, .btn-ink { padding-top:10px; padding-bottom:10px; }
+  .queue-q, .cc-reopen { min-height:44px; }
+  .queue-search { gap:8px; }
+  .queue-q { flex:1 1 100%; }
   .amt-input { min-height:44px; }
   .status-select { min-height:38px; }
   #masthead { gap:10px; }

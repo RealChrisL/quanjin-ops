@@ -461,6 +461,95 @@
       });
   }
 
+  /* =========================================================================
+   * searchClosed：已結案客戶「隨選」單次查詢（找回被 fetchRecords 濾掉的紀錄）
+   *
+   * fetchRecords 刻意只抓進行態（狀態≠已完成 或 近 30 天結案）——庫內約 1,200 筆
+   * 已完成紀錄若整批載入，佇列／KPI／圖譜會被灌爆。所以「已結案的客戶查不到」這件事
+   * 用隨選查詢解：使用者真的要找某個人時才打 ONE 支 filterByFormula，maxRecords 設上限，
+   * 不預載、不翻頁、不進 state.queue、不進任何統計或徽章。
+   *
+   * 條件：AND({狀態}='已完成', OR(SEARCH(查詢, {姓名/LINE顯示名稱/Line 備註名稱})))
+   * 兩側 LOWER → 大小寫不敏感（對齊 bot find_record_by_name 慣例）。
+   * 回傳 NormRecord[]（與 fetchRecords 同一條 _normalize 正規化路徑）；查無 → []。
+   * ===================================================================== */
+  var CLOSED_SEARCH_MAX = 10;   // 單次隨選查詢回傳上限（刻意小；要更準就打更完整的姓名）
+
+  /* Airtable 公式字串常值跳脫：公式以雙引號包字串，故只需處理反斜線與雙引號。 */
+  function _escFormulaStr(s) {
+    return String(s == null ? "" : s).replace(/\\/g, "\\\\").replace(/"/g, "\\\"");
+  }
+
+  /* 組已結案搜尋公式。nameFields 單一真實來源＝FIELD_MAP_DEFAULTS.委託人（同一組姓名候選，
+   * 本地比對與伺服器端比對才會一致）；statusField 未解析時只比對姓名，呼叫端另行把關。 */
+  function buildClosedSearchFormula(query, statusField, nameFields) {
+    var q = String(query == null ? "" : query).trim();
+    if (!q) { return null; }
+    var fields = (nameFields && nameFields.length)
+      ? nameFields
+      : ["Line 備註名稱", "姓名", "LINE顯示名稱"];
+    var needle = "\"" + _escFormulaStr(q.toLowerCase()) + "\"";
+    var ors = fields.map(function (f) {
+      // &"" 把空值強制轉字串，避免 LOWER() 吃到空值時整條公式評估失敗
+      return "SEARCH(" + needle + ",LOWER({" + f + "}&\"\"))";
+    });
+    var nameMatch = (ors.length > 1) ? ("OR(" + ors.join(",") + ")") : ors[0];
+    if (!statusField) { return nameMatch; }
+    return "AND({" + statusField + "}=\"" + QJ.STATUS.DONE + "\"," + nameMatch + ")";
+  }
+
+  function searchClosed(query) {
+    var q = String(query == null ? "" : query).trim();
+    if (!q) { return Promise.resolve([]); }
+
+    var creds = QJ.auth.getCreds();
+    var fieldMap = QJ.airtable.fieldMap || loadFieldMapFromLS();
+    var ensureMap = fieldMap
+      ? Promise.resolve(fieldMap)
+      : detectSchema().then(function (r) { return r.fieldMap; });
+
+    return ensureMap.then(function (fmap) {
+      var statusField = (fmap && fmap["狀態"]) || "進度狀態";
+      var formula = buildClosedSearchFormula(
+        q, statusField, (DEFAULTS && DEFAULTS["委託人"]) || null);
+      if (!formula) { return []; }
+
+      var url = SETTINGS.apiBase + "/" + encodeURIComponent(creds.baseId) +
+                "/" + encodeURIComponent(creds.tableId) +
+                "?maxRecords=" + CLOSED_SEARCH_MAX +
+                "&filterByFormula=" + encodeURIComponent(formula);
+
+      // 走與輪詢同一條節流佇列（get），不會擠掉正常讀取
+      return get(url, creds.pat).then(function (data) {
+        var recs = (data && data.records) || [];
+        var out = [];
+        for (var i = 0; i < recs.length; i++) {
+          if (_isStaffOwnRecord(recs[i])) { continue; } // 同仁本人紀錄不是客戶
+          out.push(_normalize(recs[i], fmap));
+        }
+        return out;
+      });
+    });
+  }
+
+  /* =========================================================================
+   * reopenRecord（🔁開回）：已完成 → 人工接管中，且「零客戶端側效」。
+   *
+   * 為什麼直連 PATCH、而不是走寫入代理 /cta：代理只有 takeover／restore 兩條狀態動作，
+   * 兩條都會碰到客戶——
+   *   restore  → bot 的「恢復」verb，必定推播「感謝耐心等候🙏」給客戶；
+   *   takeover → bot 的「接管」verb，manual_takeover_ack 已上線，非上班時段會推播
+   *              一則關懷語給客戶（上班時段才靜默）。
+   * 「開回」是內部把誤結／需續辦的紀錄找回來的動作，客戶不該收到任何訊息，所以這裡
+   * 刻意用 PAT 直接寫欄位（語意等同人工在 Airtable 改狀態）。
+   *
+   * 只改 進度狀態 一個欄位；不動 結案日期（保留結案歷史，且狀態已非已完成，佇列本來
+   * 就會收錄這筆）。成功後由呼叫端重跑 refresh，該筆即以可指派的狀態出現在客戶清單。
+   * ===================================================================== */
+  function reopenRecord(id) {
+    return patchRecord(id, { 狀態: QJ.STATUS.HUMAN });
+  }
+
   /* ---- CTA 走後端寫回代理（bot-proxy）：POST /cta，回 {ok, fields}；非2xx/解析失敗 → throw ---- */
   function cta(id, pa) {
     var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/cta";
@@ -535,6 +624,9 @@
     detectSchema: detectSchema,
     fetchRecords: fetchRecords,
     patchRecord: patchRecord,
+    searchClosed: searchClosed,
+    reopenRecord: reopenRecord,
+    CLOSED_SEARCH_MAX: CLOSED_SEARCH_MAX,
     cta: cta,
     fetchStats: fetchStats,
     fetchStaff: fetchStaff,
@@ -547,6 +639,6 @@
   };
 
   // 測試專用匯出（純函式；零行為變更）。standalone node harness 由此取得私有純函式。
-  QJ.airtable._test = { buildFilterFormula: buildFilterFormula, _isStaffOwnRecord: _isStaffOwnRecord, _normalize: _normalize, coalesceName: coalesceName, toNumber: toNumber, toDate: toDate };
+  QJ.airtable._test = { buildFilterFormula: buildFilterFormula, _isStaffOwnRecord: _isStaffOwnRecord, _normalize: _normalize, coalesceName: coalesceName, toNumber: toNumber, toDate: toDate, buildClosedSearchFormula: buildClosedSearchFormula, _escFormulaStr: _escFormulaStr };
 
 })();

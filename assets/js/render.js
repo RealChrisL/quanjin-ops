@@ -24,7 +24,7 @@
 
   var R = {};            // QJ.render
   R._last = null;        // 最近一次 state（applyFilters 用）
-  R._filters = { type: "", owner: "", status: "" };
+  R._filters = { type: "", owner: "", status: "", q: "" };   // q＝姓名搜尋（純呈現層切片）
   R._ctaFilters = { owner: "", type: "", kind: "" };
 
   /* ---------- 小工具 ---------- */
@@ -469,11 +469,31 @@
     return thead;
   }
 
+  /* 姓名比對（本地）：委託人（coalesce 後）＋三個原始姓名欄位，大小寫不敏感。
+   * 姓名候選單一真實來源＝FIELD_MAP_DEFAULTS.委託人——與 airtable.searchClosed 的
+   * 伺服器端 SEARCH() 用同一組欄位，「本地找不到才查已結案」的判斷才不會兩套標準。 */
+  var NAME_FIELDS = (window.QJ && QJ.FIELD_MAP_DEFAULTS && QJ.FIELD_MAP_DEFAULTS["委託人"])
+    || ["Line 備註名稱", "姓名", "LINE顯示名稱"];
+  function matchesQuery(rec, q) {
+    if (!q) return true;
+    var needle = String(q).toLowerCase();
+    var f = (rec && rec.fields) || {};
+    var hay = [rec && rec.委託人];
+    NAME_FIELDS.forEach(function (n) { hay.push(f[n]); });
+    for (var i = 0; i < hay.length; i++) {
+      var v = hay[i];
+      if (v == null || v === "") continue;
+      if (String(v).toLowerCase().indexOf(needle) !== -1) return true;
+    }
+    return false;
+  }
+
   function passesFilter(item) {
     var f = R._filters, rec = item.rec || {};
     if (f.type && rec.案件類型 !== f.type) return false;
     if (f.owner && displayOwner(rec.承辦人) !== f.owner) return false;
     if (f.status && rec.狀態 !== f.status) return false;
+    if (f.q && !matchesQuery(rec, f.q)) return false;
     return true;
   }
 
@@ -586,9 +606,12 @@
       var tr = el("tr");
       var td = el("td");
       td.colSpan = QUEUE_COLS.length;
-      var msg = (R._filters.type || R._filters.owner || R._filters.status)
-        ? "這個篩選條件下沒有案件，調整看看上面的篩選。"
-        : "目前沒有進行中的案件。";
+      // 搜尋中查無命中 → 這句是「兩段式讀感」的第一段；第二段是下方自動補上的已結案灰卡。
+      var msg = R._filters.q
+        ? "查無進行中案件"
+        : ((R._filters.type || R._filters.owner || R._filters.status)
+          ? "這個篩選條件下沒有案件，調整看看上面的篩選。"
+          : "目前沒有進行中的案件。");
       var e = el("div", "empty-state", msg);
       td.appendChild(e);
       tr.appendChild(td);
@@ -597,6 +620,121 @@
     }
     rows.forEach(function (item) { tbody.appendChild(buildQueueRow(item)); });
   }
+
+  /* =============================================================================
+   * 貳 · 已結案搜尋結果（灰卡）
+   *
+   * 這一區「不是待辦」——它是使用者主動找人時，把 fetchRecords 刻意濾掉的已結案紀錄
+   * 補回畫面上。所以：不進 state.queue、不進 KPI／摘要／團隊／圖譜、沒有等候天數徽章
+   * （不在佇列裡就沒有 SLA 可言），視覺一律去強調（1px 細框／panel2 底／opacity .85），
+   * 動作只有兩個：🔗 詳情（Airtable 原紀錄）與 開回（狀態改人工接管中，不通知客戶）。
+   * ========================================================================== */
+  var CLOSED_CAP = (window.QJ && QJ.airtable && QJ.airtable.CLOSED_SEARCH_MAX) || 10;
+
+  function fmtYMD(d) {
+    if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+    return d.getFullYear() + "/" + (d.getMonth() + 1) + "/" + d.getDate();
+  }
+
+  function buildClosedCard(rec) {
+    rec = rec || {};
+    var id = rec.id || "";
+    var name = clientLabel(rec.委託人);
+    var card = el("article", "closed-card");
+    card.setAttribute("data-closed-id", id);
+
+    var head = el("div", "cc-head");
+    head.appendChild(el("span", "cc-name", name));
+    head.appendChild(el("span", "cc-chip", "已結案"));
+    card.appendChild(head);
+    card.appendChild(el("div", "cc-sub", "不在目前進行中清單內"));
+
+    // 案件類型・結案日期（有才顯示）・最後互動時間
+    var bits = [rec.案件類型 || "未分類"];
+    var closed = fmtYMD(rec.結案日期);
+    if (closed) bits.push(closed + " 結案");
+    var last = fmtYMD(rec.lastInteraction);
+    if (last) bits.push("最後互動 " + last);
+    card.appendChild(el("div", "cc-meta", bits.join("・")));
+
+    var acts = el("div", "cc-acts");
+    var url = airtableUrl(id);
+    if (url) {
+      var a = el("a", "cc-link", "🔗 詳情");
+      a.setAttribute("href", url);
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+      acts.appendChild(a);
+    }
+    var b = el("button", "cta cc-reopen", "開回");
+    b.type = "button";
+    b.setAttribute("data-cta", "reopen");
+    b.setAttribute("data-id", id);
+    b.setAttribute("data-name", name);   // confirm()／toast 用，免得 app 再查一次紀錄
+    b.title = "重新開啟並轉為人工接管，可重新指派承辦人；不會通知客戶";
+    acts.appendChild(b);
+    card.appendChild(acts);
+
+    var msg = el("p", "cc-msg");
+    msg.hidden = true;
+    card.appendChild(msg);
+    return card;
+  }
+
+  /* payload: {query, loading?, error?, records?}。四種狀態各自一條路徑，任何一種都不丟例外。 */
+  R.renderClosedResults = function (payload) {
+    var host = $("closed-results"); if (!host) return;
+    payload = payload || {};
+    clear(host);
+    host.hidden = false;
+
+    if (payload.loading) {
+      host.appendChild(el("p", "cc-note", "查詢已結案紀錄中…"));
+      return;
+    }
+    if (payload.error) {
+      host.appendChild(el("p", "cc-note cc-note-err", payload.error));
+      return;
+    }
+    var list = payload.records || [];
+    if (!list.length) {
+      host.appendChild(el("p", "cc-note",
+        "查無「" + (payload.query || "") + "」的客戶紀錄——進行中與已結案皆無符合結果，"
+        + "請確認姓名或聯絡全謹系統管理人員。"));
+      return;
+    }
+    list.forEach(function (rec) { host.appendChild(buildClosedCard(rec)); });
+    // 截斷絕不無聲：滿額時明說只給了前 N 筆
+    if (list.length >= CLOSED_CAP) {
+      host.appendChild(el("p", "cc-note",
+        "僅顯示前 " + CLOSED_CAP + " 筆，請輸入更完整的姓名。"));
+    }
+  };
+
+  R.hideClosedResults = function () {
+    var host = $("closed-results"); if (!host) return;
+    clear(host);
+    host.hidden = true;
+  };
+
+  /* 單卡狀態：'busy'（寫入中，鎖住按鈕）／'done'（已開回，移除按鈕）／'err'（失敗，可重試）。
+   * 失敗時按鈕留著＋訊息說明狀態未變更——卡片自己承擔錯誤，不動整頁。 */
+  R.setClosedCardState = function (id, state, msg) {
+    var card = document.querySelector('.closed-card[data-closed-id="' + cssEscape(id) + '"]');
+    if (!card) return;
+    var btn = card.querySelector(".cc-reopen");
+    var box = card.querySelector(".cc-msg");
+    card.setAttribute("data-state", state || "");
+    if (btn) {
+      if (state === "done") { if (btn.parentNode) btn.parentNode.removeChild(btn); }
+      else { btn.disabled = (state === "busy"); }
+    }
+    if (box) {
+      box.className = "cc-msg" + (state === "err" ? " cc-msg-err" : (state === "done" ? " cc-msg-ok" : ""));
+      box.textContent = msg || "";
+      box.hidden = !msg;
+    }
+  };
 
   /* =============================================================================
    * 貳 · 成交進度欄 #deal-track
@@ -1027,9 +1165,28 @@
     R._filters = {
       type: f.type != null ? f.type : R._filters.type,
       owner: f.owner != null ? f.owner : R._filters.owner,
-      status: f.status != null ? f.status : R._filters.status
+      status: f.status != null ? f.status : R._filters.status,
+      q: f.q != null ? f.q : R._filters.q
     };
     if (R._last) renderQueue(R._last);
+  };
+
+  /* 目前切片下、符合姓名查詢的進行中件數。app.js 據此決定「要不要自動補查已結案」——
+   * >0 表示進行中清單就找得到人，不必也不該再打一支查詢。 */
+  R.localMatchCount = function (q) {
+    var s = R._last;
+    if (!s || !s.queue || !s.queue.length) return 0;
+    var n = 0;
+    s.queue.forEach(function (item) {
+      var rec = item.rec || {};
+      if (!matchesQuery(rec, q)) return;
+      var f = R._filters;
+      if (f.type && rec.案件類型 !== f.type) return;
+      if (f.owner && displayOwner(rec.承辦人) !== f.owner) return;
+      if (f.status && rec.狀態 !== f.status) return;
+      n += 1;
+    });
+    return n;
   };
 
   /* ---------- pushSyncLog ---------- */
