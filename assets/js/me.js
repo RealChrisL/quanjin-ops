@@ -28,6 +28,11 @@
   // 全所客戶清單（admin/developer 專屬）狀態
   var allClients = [], roster = [], clientSearch = "", clientStatus = "all",
       clientShown = 30, clientListEl = null;
+  // 「未開口客戶」＝加了官方帳號但從沒傳過任何訊息的名單（沒案子、沒對話、沒得推進）。
+  // 後端預設把這些濾掉，戰情室只留真的要處理的案子；按下開關才帶 include_silent=1
+  // 重新拉一次完整清單 —— 是收合，不是刪除。silentN 由後端 silent_count 給，
+  // 兩種模式數字都一樣，所以開關文案不會在切換後歸零。
+  var clientIncludeSilent = false, clientSilentN = 0, silentToggleEl = null;
   // 本日待辦行動（戰情室同款：待回=上班時段逾4h、逾期=實際逾24h）＋總結橫幅
   var todoOwner = "all", todoShown = 30, todoListEl = null, bannerEl = null,
       ownerSelEl = null, todoSubEl = null;
@@ -367,8 +372,16 @@
 
   function loadClients() {
     if (!meClients || !isAdmin()) return;
-    api("/clients").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (d) { allClients = d.cases || []; roster = d.roster || []; renderClientsPanel(); })
+    api("/clients" + (clientIncludeSilent ? "?include_silent=1" : ""))
+      .then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
+      .then(function (d) {
+        allClients = d.cases || []; roster = d.roster || [];
+        // silent_count 是「未開口」的總數(與模式無關)；舊版後端沒有這兩個欄位 →
+        // 0 → 開關自動隱藏,面板行為完全同現況(前端可先上,後端再上)。
+        clientSilentN = (typeof d.silent_count === "number")
+          ? d.silent_count : (d.hidden_silent || 0);
+        renderClientsPanel();
+      })
       .catch(function (s) {
         // 403（非 admin）→ 面板收起；其它錯誤(500/斷線/逾時) → 明說,別讓面板靜默消失
         // 讓奕溱以為功能壞了(ux B1)。若清單已渲染過,保留舊資料只提示即可。
@@ -445,6 +458,22 @@
         chips.appendChild(chip);
       });
       ctrl.appendChild(chips);
+
+      // 「未開口客戶」開關 —— 獨立於上面的狀態籤(那排是互斥單選,這個是可開可關的附加),
+      // 所以自成一列,沿用同一顆 me-chip 樣式。文案帶數字,讓人知道被收起來的有幾筆,
+      // 而不是默默少了東西。數量 0 時整顆隱藏(沒東西可展開)。
+      var sctl = el("div", "me-chips");
+      silentToggleEl = el("button", "me-chip", "顯示未開口客戶");
+      silentToggleEl.hidden = true;
+      silentToggleEl.addEventListener("click", function () {
+        clientIncludeSilent = !clientIncludeSilent;
+        clientShown = 30;
+        if (clientIncludeSilent) silentToggleEl.classList.add("active");
+        else silentToggleEl.classList.remove("active");
+        loadClients();
+      });
+      sctl.appendChild(silentToggleEl);
+      ctrl.appendChild(sctl);
       meClients.appendChild(ctrl);
 
       clientListEl = el("div", "me-clist");
@@ -509,6 +538,11 @@
   function renderClientList() {
     if (!clientListEl) return;
     clear(clientListEl);
+    if (silentToggleEl) {
+      silentToggleEl.textContent = "顯示未開口客戶（" + clientSilentN + "）";
+      // 開著的時候即使數量變 0 也要留著,不然使用者關不回去。
+      silentToggleEl.hidden = !(clientSilentN > 0 || clientIncludeSilent);
+    }
     var arr = filteredClients();
     var sub = meClients.querySelector(".me-sec .me-sec-s");
     if (sub) sub.textContent = arr.length + " 件";
