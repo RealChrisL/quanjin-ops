@@ -156,13 +156,25 @@ QJ.applyStaffRoster = function (payload) {
     }
     // 改派 picker 名冊（QJ.TEAM_ROSTER）也由後端重建：assignable_uids = 同仁∪管理員（不含 dev）。
     // 併集（只新增、不移除）→ config.json 加一位同仁即自動出現在改派下拉，不必再改本檔。
+    // 姓名以後端為準：既有項目的 name 也要跟著更新。舊版只在 uid 不存在時 push，
+    // 從不改寫既有項目的 name，於是硬編的「謝代書」「奕溱」在後端已改叫「謝敦堯代書」
+    // 「黃奕溱」之後會永遠停在舊名——同一頁裡改派下拉一個名字、QJ.ownerName（先查
+    // TEAM_BY_UID）另一個名字。功能無礙（寫回帶的是 uid），但那正是這次要消滅的
+    // 「第二份姓名真實來源」。硬編值保留為代理離線時的後備，不刪。
     var assignable = payload.assignable_uids;
     if (assignable && typeof assignable === "object" && QJ.TEAM_ROSTER) {
-      var have = {};
-      QJ.TEAM_ROSTER.forEach(function (m) { if (m && m.uid) have[m.uid] = true; });
+      var entryByUid = {};
+      QJ.TEAM_ROSTER.forEach(function (m) { if (m && m.uid) entryByUid[m.uid] = m; });
       Object.keys(assignable).forEach(function (u) {
-        if (u && !have[u]) { QJ.TEAM_ROSTER.push({ uid: u, name: assignable[u] || u }); have[u] = true; }
-        if (u) QJ.TEAM_BY_UID[u] = assignable[u] || QJ.TEAM_BY_UID[u] || u; // ownerName 一致
+        if (!u) { return; }
+        var nm = assignable[u] || "";
+        if (!entryByUid[u]) {
+          entryByUid[u] = { uid: u, name: nm || u };
+          QJ.TEAM_ROSTER.push(entryByUid[u]);
+        } else if (nm) {
+          entryByUid[u].name = nm;                        // 後端＝姓名唯一真實來源
+        }
+        QJ.TEAM_BY_UID[u] = nm || QJ.TEAM_BY_UID[u] || u; // ownerName 一致
       });
     }
     return true;
