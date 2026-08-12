@@ -616,9 +616,32 @@
       td.appendChild(e);
       tr.appendChild(td);
       tbody.appendChild(tr);
+      appendStubDisclosure(table);
       return;
     }
     rows.forEach(function (item) { tbody.appendChild(buildQueueRow(item)); });
+    appendStubDisclosure(table);
+  }
+
+  /* 未開口追蹤者的揭露行：fetch 端隱藏了 N 筆「加好友後從未傳訊」的殘根
+   * （OA 無對話串、無事可辦），這裡把數字亮出來——寧可多一行說明，
+   * 不讓清單默默變短（同 /me 面板的 silent_count 揭露慣例）。 */
+  function appendStubDisclosure(table) {
+    var n = (window.QJ && QJ.airtable && QJ.airtable.hiddenStubCount) || 0;
+    if (!n) return;
+    var tfoot = el("tfoot");
+    var tr = el("tr");
+    var td = el("td");
+    td.colSpan = QUEUE_COLS.length;
+    var note = el("div", "empty-state",
+      "另有 " + n + " 筆加好友後未曾傳訊的追蹤者未列入（OA 無對話、無需行動；" +
+      "對方一傳訊息就會自動回到清單）。");
+    note.style.opacity = ".7";
+    note.style.fontSize = ".85em";
+    td.appendChild(note);
+    tr.appendChild(td);
+    tfoot.appendChild(tr);
+    table.appendChild(tfoot);
   }
 
   /* =============================================================================

@@ -356,6 +356,33 @@
     return false;
   }
 
+  /* 排除「加好友後從未傳訊」的追蹤者殘根：record_follow 預建的紀錄，客戶一句話
+   * 都沒說過 → OA Manager 根本沒有對話串，謝代書找不到人、也無事可辦（2026-08-13
+   * Chris:「待辦清單很多客人在OA找不到」）。判定式逐條移植 bot 端
+   * notifier.is_untouched_follow_stub（同一組條款，勿各自演化）：案件類型空/其他
+   * ＋對話摘要/場景空＋需求摘要為 follow 哨兵＋首次進線==最後互動（從未 upsert）
+   * ＋無人工接手痕跡（OA聊天ID/備註/委派）。任何一條不符 → 照常顯示（fail-open
+   * 寧多列一筆殘根，不藏一位真客戶）。隱藏筆數計入 hiddenStubCount 由佇列尾揭露。 */
+  var FOLLOW_STUB_SENTINEL = "客戶 follow 後尚未傳送訊息";
+  function _isSilentFollowStub(raw) {
+    var f = (raw && raw.fields) || {};
+    function s(key) {
+      var v = f[key];
+      if (Array.isArray(v)) { v = v.length ? v[0] : ""; }
+      return (typeof v === "string" ? v : (v == null ? "" : String(v))).trim();
+    }
+    var caseType = s("案件類型");
+    if (caseType && caseType !== "其他") { return false; }
+    if (s("對話摘要")) { return false; }
+    if (s("客戶場景描述")) { return false; }
+    var need = s("需求摘要");
+    if (need && need.indexOf(FOLLOW_STUB_SENTINEL) !== 0) { return false; }
+    var first = s("首次進線時間"), last = s("最後互動時間");
+    if (!first || first !== last) { return false; }
+    if (s("OA聊天ID") || s("Line 備註名稱") || s("委派團隊成員")) { return false; }
+    return true;
+  }
+
   function fetchRecords() {
     var creds = QJ.auth.getCreds();
     var fieldMap = QJ.airtable.fieldMap || loadFieldMapFromLS();
@@ -370,6 +397,7 @@
       var formula = buildFilterFormula(fmap);
 
       var all = [];
+      var hiddenStubs = 0;
 
       function pageOnce(offset) {
         var params = [];
@@ -386,11 +414,13 @@
           var recs = (data && data.records) || [];
           for (var i = 0; i < recs.length; i++) {
             if (_isStaffOwnRecord(recs[i])) { continue; } // 同仁自身紀錄不列入客戶清單
+            if (_isSilentFollowStub(recs[i])) { hiddenStubs++; continue; } // 未開口追蹤者：OA 無對話、無事可辦
             all.push(_normalize(recs[i], fmap));
           }
           if (data && data.offset) {
             return pageOnce(data.offset); // 續抓下一頁
           }
+          QJ.airtable.hiddenStubCount = hiddenStubs; // 佇列尾揭露用（絕不默默少東西）
           return all;
         });
       }
