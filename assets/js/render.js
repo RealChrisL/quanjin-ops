@@ -251,7 +251,8 @@
   /* =============================================================================
    * 壹 · CTA 待辦行動
    * ========================================================================== */
-  var ACTION_KIND_LABEL = { pending: "待回覆", overdue: "逾期跟進", close: "可結案", amount: "待補金額" };
+  var ACTION_KIND_LABEL = { pending: "待回覆", overdue: "逾期跟進", close: "可結案", amount: "待補金額",
+                          returned: "已結案回訊" };
   var TIP_CONTACTED = "已聯繫：記下你已回覆或聯繫這位客戶，案件暫時不再提醒；客戶再來訊會自動重新計時。";
   var TIP_CLOSE = "結案：案件辦理完成，會移出清單（之後要逐筆「恢復」才能拉回）。結案時需選「成交（填金額）」或「未成交」。";
 
@@ -297,7 +298,8 @@
     host.appendChild(slicers);
 
     host.appendChild(el("div", "cta-legend",
-      "已聯繫＝我已回覆／聯繫（暫不提醒，客戶再來訊自動重新計時）　·　結案＝案件辦理完成（移出清單，可逐筆恢復）"));
+      "已聯繫＝我已回覆／聯繫（暫不提醒，客戶再來訊自動重新計時）　·　結案＝案件辦理完成（移出清單，可逐筆恢復）"
+      + "　·　已結案回訊＝原本已結案的客戶又傳訊息（系統未回覆客戶，請至 OA 確認並回覆）"));
 
     var visible = actions.filter(function (act) { return ctaMatch(act, null); });
     if (!visible.length) {
@@ -342,6 +344,40 @@
     } catch (e) { return null; }
   }
 
+  /* 已結案回訊的摘要行：只取「待辦事項」第一條（該欄是新到舊往前插入，第一條＝
+   * 客戶最新關切）。切在句讀不切在半句；引號不成對時延伸到收尾引號，避免把客戶
+   * 原話斷章取義。待辦為空 → 退回需求摘要（config 的 案件說明 已對映該欄）→ 皆空
+   * 則明說沒有摘要，不放假內容。 */
+  var TODO_BOUNDARY = "。！？；」』";
+  function safeTruncate(str, target, backWin, fwdWin) {
+    target = target || 75; backWin = backWin || 30; fwdWin = fwdWin || 15;
+    if (str.length <= target) return str;
+    var i;
+    for (i = target; i > Math.max(target - backWin, 0); i--) {
+      if (TODO_BOUNDARY.indexOf(str.charAt(i - 1)) !== -1) return str.slice(0, i);
+    }
+    for (i = target; i < Math.min(target + fwdWin, str.length); i++) {
+      if (TODO_BOUNDARY.indexOf(str.charAt(i - 1)) !== -1) return str.slice(0, i);
+    }
+    return str.slice(0, target) + "…";
+  }
+  function balanceQuotes(cut, full) {
+    var opens = (cut.match(/「/g) || []).length, closes = (cut.match(/」/g) || []).length;
+    if (opens <= closes) return cut;
+    var nxt = full.indexOf("」", cut.length);
+    if (nxt !== -1 && nxt - cut.length <= 30) return full.slice(0, nxt + 1);
+    return cut;
+  }
+  function firstTodoExcerpt(rec) {
+    var raw = rec && rec.待辦事項 ? String(rec.待辦事項) : "";
+    var first = "";
+    if (raw.trim()) { first = (raw.split(/\n(?=・)/)[0] || "").replace(/^・/, "").trim(); }
+    if (!first && rec && rec.案件說明) { first = String(rec.案件說明).trim(); }
+    if (!first) return "（尚無摘要，請點詳情查看對話）";
+    first = first.replace(/\s*\n+\s*/g, "；");
+    return balanceQuotes(safeTruncate(first, 75, 30, 15), first);
+  }
+
   function buildActionRow(act) {
     var rec = act.rec || {};
     var id = act.id || rec.id;
@@ -384,17 +420,28 @@
     attachAsanaBadge(extra, rec);
     if (extra.childNodes.length) meta.appendChild(extra);
     var todos = rec.待辦事項 ? String(rec.待辦事項).replace(/\s*\n+\s*/g, "；").trim() : "";
-    if (todos) {
+    if (act.kind === "returned") {
+      // 已結案回訊列：待辦事項是「新到舊」往前插入，第一條就是客戶最新的關切——
+      // 掃視型元件只放這一條，切在句讀不切在半句（對話摘要相反是舊到新、尾端多為
+      // 客套話，故不採用）。
+      meta.appendChild(el("div", "cta-todo-line cta-returned-line",
+                          "回訊：" + firstTodoExcerpt(rec)));
+    } else if (todos) {
       if (todos.length > 200) todos = todos.slice(0, 200) + "…";
       meta.appendChild(el("div", "cta-todo-line", "待辦：" + todos));
     }
     row.appendChild(meta);
 
     var ctrls = el("div", "cta-ctrls");
-    if (act.kind === "pending" || act.kind === "overdue" || act.kind === "close") {
+    if (act.kind === "pending" || act.kind === "overdue" || act.kind === "close"
+        || act.kind === "returned") {
       // 一致排序與字樣：每列皆「已聯繫（墨）｜送件結案（綠）」
       ctrls.appendChild(ctaContacted(id));
-      ctrls.appendChild(ctaButton("結案", "close", id, "cta-ok", false, TIP_CLOSE));
+      // 已結案回訊：內容都還沒被看過，結案不該用肯定色搶視覺優先度（行為不變、
+      // 路徑保留——有些案子團隊已在 OA 處理完，只是回來補結案）。
+      ctrls.appendChild(ctaButton("結案", "close", id,
+                                  act.kind === "returned" ? null : "cta-ok",
+                                  false, TIP_CLOSE));
     } else if (act.kind === "amount") {
       ctrls.appendChild(ctaButton("補成交金額", "amount", id, "cta-accent"));
     }
@@ -1064,7 +1111,9 @@
         delete prevIds[id];
       } else {
         var nrow = buildQueueRow(item);
-        nrow.classList.add("row-new"); // 新進件朱色高亮
+        // 已結案回訊不是新進件——朱色高亮的既定語意是「新客戶」，撞色即撞語意。
+        if (item && item.returned) { nrow.classList.add("row-returned"); }
+        else { nrow.classList.add("row-new"); } // 新進件朱色高亮
         frag.appendChild(nrow);
       }
     });

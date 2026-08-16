@@ -441,6 +441,105 @@ function run() {
   QJ.render.setWriteStatus("off", "未設定寫入");
   check("C7 unconfigured → data-ok=off", wsHost.getAttribute("data-ok") === "off");
 
+  /* ---- CASE 8: 已結案回訊 CTA 列（方案 E 前端分流 · 真 DOM）----------------
+   * 後端 legacy_return_flip 把舊客的 已完成 靜默翻成 人工接管中；戰情室必須把
+   * 這種列跟「辦完待歸檔」分開。這裡走「真 producer → 真 render」：重新載入
+   * logic.js 復原上面被 stub 掉的 analyze（CASE 8 是最後一段，不影響前面），
+   * 用真紀錄跑 analyze() 產生 actions，再交給真 render 畫出 DOM——不手搓
+   * action 物件（手搓的卡片形狀測不到 producer 漏欄位）。
+   * fixture 待辦事項取自真實個案 李鎧華（Ue446843…3fc2f）的第一、二條。
+   * --------------------------------------------------------------------- */
+  console.log("CASE 8 — 已結案回訊 CTA 列（真 analyze → 真 render）");
+  load("logic.js");   // 復原真 analyze（前面為隔離 render 而 stub 過）
+  check("C8-0 真 analyze 已復原（非上面的 stub）",
+        QJ.logic.analyze([{ id: "probe", 狀態: QJ.STATUS.HUMAN, lastInteraction: new Date() }], {})
+          .queue.length === 1);
+
+  var REAL_TODO = [
+    "・【客戶顧慮・建議給她一段可轉述的說法】01:21 客戶說「怕他們覺得 要傳個人身份證會擔心」 — 她擔心開口要姐姐與弟弟的身分證會讓對方有疑慮。請承辦人告訴她：需要哪些項目、為什麼需要、本所如何保管，讓她能直接轉述給家人；必要時也可說明是否有其他替代方式",
+    "・【客戶的下一步】她將向姐姐與弟弟索取身分證字號，並在這幾天整理資料交給謝代書。若還需其他文件請一次講清楚",
+  ].join("\n");
+  function hoursAgoD(n) { return new Date(Date.now() - n * 3600000); }
+  function daysAgoD(n) { return new Date(Date.now() - n * 86400000); }
+
+  var ctaHost = DOC.createElement("div");
+  DOC._byId["cta-actions"] = ctaHost;
+  var caseRecs = [
+    // 已結案回訊：人工接管中 + 結案日期 + 互動晚於結案
+    { id: "rRet", 委託人: "李鎧華", 案件類型: "夫妻贈與", 承辦人: "謝代書",
+      狀態: QJ.STATUS.HUMAN, 結案日期: daysAgoD(30), lastInteraction: hoursAgoD(2),
+      待辦事項: REAL_TODO, fields: {} },
+    // 一般可結案（護欄組）：同樣人工接管中，但沒有結案日期
+    { id: "rClose", 委託人: "王待歸", 案件類型: "遺囑", 承辦人: "謝代書",
+      狀態: QJ.STATUS.HUMAN, 結案日期: null, lastInteraction: hoursAgoD(3),
+      待辦事項: "・請確認文件收訖", fields: {} },
+  ];
+  QJ.render._last = QJ.logic.analyze(caseRecs, { pendingReplyHours: 0, overdueHours: 24 });
+  check("C8-0b producer 真的產出 returned 與 close 各一列",
+        QJ.render._last.actions.map(function (a) { return a.kind; }).sort().join(",") === "close,returned",
+        QJ.render._last.actions.map(function (a) { return a.kind; }));
+  QJ.render.applyCtaFilter("kind", "");   // 匯出的入口，觸發 renderCtaActions
+
+  var retRow = ctaHost.querySelector('.cta-row[data-id="rRet"]');
+  var clsRow = ctaHost.querySelector('.cta-row[data-id="rClose"]');
+  check("C8a 已結案回訊列渲染出來", !!retRow);
+  check("C8a2 一般可結案列同時渲染（護欄組）", !!clsRow);
+  if (retRow && clsRow) {
+    check("C8b 該列 class 帶 kind-returned", retRow.classList.contains("kind-returned"), retRow.className);
+    var desc = retRow.querySelector(".cta-desc");
+    check("C8c 類別字樣為「已結案回訊」",
+          desc && desc.textContent.indexOf("已結案回訊") === 0, desc && desc.textContent);
+
+    // 摘要行：回訊：{待辦第一條}，不是整包待辦
+    var line = retRow.querySelector(".cta-returned-line");
+    check("C8d 有 .cta-returned-line 摘要行", !!line);
+    check("C8d2 以「回訊：」開頭（非「待辦：」）",
+          line && line.textContent.indexOf("回訊：") === 0, line && line.textContent.slice(0, 12));
+    check("C8e [真實資料] 只帶待辦第一條（含【客戶顧慮…】）",
+          line && line.textContent.indexOf("【客戶顧慮") !== -1, line && line.textContent);
+    check("C8e2 [真實資料] 不含第二條（【客戶的下一步】）",
+          line && line.textContent.indexOf("【客戶的下一步】") === -1, line && line.textContent);
+    check("C8e3 摘要行有界（含「回訊：」不超過 100 字，掃視型元件不長高）",
+          line && line.textContent.length <= 100, line && line.textContent.length);
+    check("C8e4 摘要行為單行（無換行）",
+          line && line.textContent.indexOf("\n") === -1);
+
+    // 按鈕：已聯繫 + 結案（結案中性色）
+    var retClose = retRow.querySelector('.cta-ctrls [data-cta="close"]');
+    var retCont = retRow.querySelector('.cta-ctrls [data-cta="contacted"]');
+    check("C8f 已結案回訊列仍有「已聯繫」鈕", !!retCont && retCont.textContent === "已聯繫");
+    check("C8f2 已結案回訊列仍有「結案」鈕（路徑保留，不移除）",
+          !!retClose && retClose.textContent === "結案");
+    check("C8g [關鍵] 已結案回訊列的結案鈕為中性色（無 cta-ok）",
+          retClose && !retClose.classList.contains("cta-ok"), retClose && retClose.className);
+
+    // 護欄：一般可結案列不得被改壞
+    var clsClose = clsRow.querySelector('.cta-ctrls [data-cta="close"]');
+    check("C8h [護欄] 一般可結案列的結案鈕仍是 cta-ok（肯定色）",
+          clsClose && clsClose.classList.contains("cta-ok"), clsClose && clsClose.className);
+    check("C8h2 [護欄] 一般可結案列不套 kind-returned",
+          !clsRow.classList.contains("kind-returned"), clsRow.className);
+    check("C8h3 [護欄] 一般可結案列沒有 .cta-returned-line",
+          !clsRow.querySelector(".cta-returned-line"));
+    var clsTodo = clsRow.querySelector(".cta-todo-line");
+    check("C8h4 [護欄] 一般可結案列維持「待辦：」行",
+          clsTodo && clsTodo.textContent.indexOf("待辦：") === 0, clsTodo && clsTodo.textContent);
+
+    // legend + 類別下拉
+    var legend = ctaHost.querySelector(".cta-legend");
+    check("C8i legend 說明「已結案回訊」是什麼、且點明系統未回覆客戶",
+          legend && legend.textContent.indexOf("已結案回訊＝原本已結案的客戶又傳訊息") !== -1 &&
+          legend && legend.textContent.indexOf("系統未回覆客戶") !== -1,
+          legend && legend.textContent);
+    var kindSel = ctaHost.querySelector('.cta-slice[data-facet="kind"]');
+    var optTexts = kindSel ? kindSel.querySelectorAll("option").map(function (o) { return o.textContent; }) : [];
+    check("C8j 類別篩選下拉出現「已結案回訊（1）」選項（同仁可只看這一類）",
+          optTexts.some(function (t) { return t.indexOf("已結案回訊") === 0; }), optTexts);
+    check("C8j2 該選項 value 為 returned（篩選鍵＝kind）",
+          kindSel && kindSel.querySelectorAll("option").some(function (o) { return o.value === "returned"; }),
+          optTexts);
+  }
+
   /* ---- done ---- */
   console.log("");
   if (FAILS.length) { console.log("FAILED: " + FAILS.length + " — " + safe(FAILS)); process.exit(1); }

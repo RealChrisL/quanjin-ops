@@ -621,6 +621,14 @@
    *      內部同仁名，無客戶 PII，需授權）。失敗回 null → 面板降級為無「結案者」欄。 ---- */
   function fetchCloseReview() { return _proxyGet("/close-review"); }
 
+  /* ---- 已結案回訊 uid 名單：GET /returned-uids（唯讀，需授權）。
+   *      為什麼需要它：面板自己的訊號是「結案日期存在且最後互動時間晚於它」，
+   *      但 95.4% 的目標紀錄（891/934，實測）根本沒有結案日期——它們是上線初期
+   *      匯入時就帶已完成狀態、從未被人按過結案。少了這個第二訊號，那些列會落回
+   *      「可結案」並被朱色「新進件」高亮誤標成新客戶。失敗／未授權 → 回 null，
+   *      面板降級為只用結案日期訊號（標得少，不會標錯）。 ---- */
+  function fetchReturnedUids() { return _proxyGet("/returned-uids"); }
+
   /* ---- Asana 進度（Phase 1.5，唯讀）：GET /asana/progress?recordId=rec…（需授權，
    *      個人 token 級）。回 {ok:true, done, total, pct, url?} 或 {ok:false, reason}；
    *      非2xx／網路失敗／解析失敗 → 回 null，呼叫端一律降級為「不顯示」。 ---- */
@@ -661,6 +669,7 @@
     fetchStats: fetchStats,
     fetchStaff: fetchStaff,
     fetchCloseReview: fetchCloseReview,
+    fetchReturnedUids: fetchReturnedUids,
     fetchHealth: fetchHealth,
     asanaProgress: asanaProgress,
     _normalize: _normalize,

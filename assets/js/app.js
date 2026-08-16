@@ -69,6 +69,21 @@
     });
   }
 
+  /* 已結案回訊名冊（GET /returned-uids）：後端把「已結案客戶又回訊」的紀錄靜默轉為
+     人工接管中，這份名冊讓面板把它們標成「已結案回訊」而不是新進件。95.4% 的目標
+     紀錄沒有結案日期，只靠面板自己的日期訊號會誤標。失敗／未授權 → 名冊留空，
+     面板降級為只用結案日期訊號（標得少，不會標錯）。 */
+  function refreshReturnedUids() {
+    if (!QJ.airtable.fetchReturnedUids) return;
+    QJ.airtable.fetchReturnedUids().then(function (r) {
+      if (r && r.ok && Array.isArray(r.uids)) {
+        var m = {};
+        r.uids.forEach(function (u) { if (u) m[u] = true; });
+        QJ.returnedUids = m;
+      }
+    });
+  }
+
   /* 寫入代理存活：戰情室的寫入全走 proxy；隧道／服務掛了時，讀取仍正常（瀏覽器直連 Airtable）
      但每筆結案／修正會無聲失敗。獨立探測 /health（免授權），明確標示「可寫入 / 無法寫入」。 */
   function refreshProxyHealth() {
@@ -110,7 +125,8 @@
       log(label, true, "已透過後端安全寫入（含鎖／通知／稽核）");
       toast("✓ 已安全寫入", "ok");
       refresh(true); // 以伺服器真相重抓校正
-      refreshCloseReview(); // 修正結果會改變「系統內／系統外」歸屬，重抓來源稽核
+      refreshCloseReview();
+    refreshReturnedUids(); // 修正結果會改變「系統內／系統外」歸屬，重抓來源稽核
     }).catch(function (e) {
       replaceRec(id, snapshot);           // 失敗回滾
       analyzeAndRender(true);
@@ -340,8 +356,10 @@
       return refresh(false);
     }).then(function () {
       startPolling();
-      refreshStats(); refreshCloseReview(); refreshProxyHealth();
-      if (!state.statsTimer) state.statsTimer = setInterval(function () { refreshStats(); refreshCloseReview(); }, 120000);
+      refreshStats(); refreshCloseReview();
+    refreshReturnedUids(); refreshProxyHealth();
+      if (!state.statsTimer) state.statsTimer = setInterval(function () { refreshStats(); refreshCloseReview();
+    refreshReturnedUids(); }, 120000);
       state.booting = false;
     }).catch(function (e) {
       state.booting = false;

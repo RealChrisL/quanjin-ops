@@ -232,9 +232,37 @@
    *   人工接管中         → 送件結案（人已接手，下一步通常是結案）
    *   其他               → 已聯繫
    * ------------------------------------------------------------------------- */
+  /* 已結案回訊：原本已結案的客戶又傳訊息（方案 E 的靜默翻轉，或清單既有的「開回」）。
+   * 訊號完全來自現有欄位——結案日期存在、最後互動時間晚於它、且目前人工接管中：
+   * 兩條開回路徑都只寫「狀態」單一欄位，結案日期全程不動，所以這個判斷式同時涵蓋
+   * 兩者，不需要後端新欄位。無法判斷（缺結案日期或缺互動時間）→ 回 false，沿用現有
+   * 預設而不誤標。 */
+  function isReturnedFromClosed(rec) {
+    if (!isHuman(rec)) return false;
+    // 訊號一（權威）：後端翻轉名冊。95.4% 的目標紀錄（實測 891/934）沒有結案日期
+    // ——它們是上線初期匯入時就帶已完成狀態、從未被人按過結案——所以只靠訊號二
+    // 會讓多數列落回「可結案」並被朱色新進件高亮誤標成新客戶。名冊取不到 → 略過，
+    // 退回訊號二（標得少，不會標錯）。
+    var uid = (rec.fields && (rec.fields["LINE用戶ID"] || rec.fields.LINE用戶ID)) || "";
+    var roster = (window.QJ && QJ.returnedUids) ? QJ.returnedUids : null;
+    if (uid && roster && roster[uid]) return true;
+    // 訊號二：結案日期存在，且最後互動時間晚於它（涵蓋清單既有的「開回」路徑）。
+    var closed = toDate(rec.結案日期);
+    if (!closed) return false;
+    var li = lastInteractionOf(rec);
+    if (!li) return false;
+    return li.getTime() > closed.getTime();
+  }
+
   function nextCTAOf(rec, level) {
     // 人工接管中：人已接手，下一步固定是結案——即使逾期也不該是「已聯繫」。
     if (isHuman(rec)) {
+      // 例外：已結案客戶回訊——案子不是「辦完待歸檔」，是「客戶在等回覆」。
+      // 用既有的 contacted 行為（只寫最後互動時間、不動狀態），避免文字說等回覆、
+      // 點下去卻跳出「本案結果？成交／未成交」的結案選擇器。
+      if (isReturnedFromClosed(rec)) {
+        return { type: "contacted", label: "已聯繫" };
+      }
       return { type: "close", label: "結案" };
     }
     if (level === "pending" || level === "overdue") {
@@ -271,6 +299,7 @@
         waitHours: eh,
         waitLabel: waitLabelOf(eh),
         level: lv,
+        returned: isReturnedFromClosed(rec),   // 供 diffUpdate 分流高亮用
         nextCTA: nextCTAOf(rec, lv),
       });
     }
@@ -399,8 +428,19 @@
         label: "逾期跟進：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitLabel + "未互動）",
       });
     });
+    // 已結案回訊：排在待回/逾期之後、一般可結案之前——比「單純等歸檔」急，
+    // 但不該和真正逾期未回的案子算同一種風險。
     closable.forEach(function (r) {
-      if (actionSeen[r.id]) return;   // 已列為 待回/逾期 → 不重複列「結案」
+      if (actionSeen[r.id]) return;
+      if (!isReturnedFromClosed(r)) return;
+      actionSeen[r.id] = true;
+      actions.push({
+        id: r.id, kind: "returned", rec: r,
+        label: "已結案回訊：" + (toStr(r.委託人) || "（未具名）"),
+      });
+    });
+    closable.forEach(function (r) {
+      if (actionSeen[r.id]) return;   // 已列為 待回/逾期/回訊 → 不重複列「結案」
       actionSeen[r.id] = true;
       actions.push({
         id: r.id, kind: "close", rec: r,
