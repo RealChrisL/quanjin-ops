@@ -546,7 +546,9 @@
 
   function buildQueueRow(item) {
     var rec = item.rec || {};
-    var tr = el("tr", "lvl-" + (item.level || "ok"));
+    // 已結案回訊列在「首次載入」也要有區別樣式——diffUpdate 的 row-returned 只在
+    // 增量新增時才掛，整頁重繪走這裡（實測:首次載入時 row-returned 為 0）。
+    var tr = el("tr", "lvl-" + (item.level || "ok") + (item.returned ? " is-returned" : ""));
     tr.setAttribute("data-id", rec.id || "");
     tr.setAttribute("data-rowsig", rowSig(item));
 

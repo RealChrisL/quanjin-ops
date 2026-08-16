@@ -392,7 +392,8 @@ table.queue tbody tr.lvl-overdue td:first-child { box-shadow:inset 3px 0 0 0 var
 table.queue tbody tr.row-new { animation:row-flash 2.2s ease-out 1 both; }
 /* 已結案回訊：不是新客戶進線——朱色是「新進件」的既定語意，這裡用低調的藍灰
  * 左邊框做區隔，不閃動、不搶視覺。 */
-table.queue tbody tr.row-returned td:first-child { box-shadow:inset 3px 0 0 0 #5b7c99; }
+table.queue tbody tr.row-returned td:first-child,
+table.queue tbody tr.is-returned td:first-child { box-shadow:inset 3px 0 0 0 #5b7c99; }
 table.queue tbody tr.row-returned { background:rgba(91,124,153,.06); }
 .cta-row.kind-returned .cta-returned-line { color:#3f5a6e; }
 @keyframes row-flash {

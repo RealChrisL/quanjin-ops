@@ -414,7 +414,19 @@
     // 積極跟進優先：先 待回 → 逾期 → 補金額 → 結案
     var actions = [];
     var actionSeen = {};   // 同一筆案件只列一次（避免逾期人工接管中案件同時出現「逾期跟進」+「結案」兩列）
+    // 已結案回訊「最先」分類：實測 18 筆翻轉紀錄有 16 筆閒置 >24h，若排在 overdue
+    // 之後會被 actionSeen 先吃掉、永遠顯示不成「已結案回訊」。回訊身分是承載資訊
+    // ——它解釋了這筆為何突然出現在清單上——逾期只是次要屬性（已等 N 天 chip 照顯示）。
+    closable.forEach(function (r) {
+      if (!isReturnedFromClosed(r)) return;
+      actionSeen[r.id] = true;
+      actions.push({
+        id: r.id, kind: "returned", rec: r,
+        label: "已結案回訊：" + (toStr(r.委託人) || "（未具名）"),
+      });
+    });
     pendingRows.forEach(function (q) {
+      if (actionSeen[q.rec.id]) return;
       actionSeen[q.rec.id] = true;
       actions.push({
         id: q.rec.id, kind: "pending", rec: q.rec, waitLabel: q.waitLabel,
@@ -422,21 +434,11 @@
       });
     });
     overdueRows.forEach(function (q) {
+      if (actionSeen[q.rec.id]) return;
       actionSeen[q.rec.id] = true;
       actions.push({
         id: q.rec.id, kind: "overdue", rec: q.rec, waitLabel: q.waitLabel,
         label: "逾期跟進：" + (toStr(q.rec.委託人) || "（未具名）") + "（" + q.waitLabel + "未互動）",
-      });
-    });
-    // 已結案回訊：排在待回/逾期之後、一般可結案之前——比「單純等歸檔」急，
-    // 但不該和真正逾期未回的案子算同一種風險。
-    closable.forEach(function (r) {
-      if (actionSeen[r.id]) return;
-      if (!isReturnedFromClosed(r)) return;
-      actionSeen[r.id] = true;
-      actions.push({
-        id: r.id, kind: "returned", rec: r,
-        label: "已結案回訊：" + (toStr(r.委託人) || "（未具名）"),
       });
     });
     closable.forEach(function (r) {

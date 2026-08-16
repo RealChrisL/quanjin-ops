@@ -651,10 +651,11 @@ function test_returnedFromClosed() {
   check("LR15 該列 kind === returned", kindsOf("ordRt")[0] === "returned", kindsOf("ordRt"));
   check("LR16 [去重] 同一筆不得同時出現在 returned 與 close",
         kindsOf("ordRt").indexOf("close") === -1, kindsOf("ordRt"));
-  check("LR17 排序：pending < returned", idxOf("ordP") < idxOf("ordRt"),
-        [idxOf("ordP"), idxOf("ordRt")]);
-  check("LR17b 排序：overdue < returned", idxOf("ordO") < idxOf("ordRt"),
-        [idxOf("ordO"), idxOf("ordRt")]);
+  check("LR17 排序：returned < pending（回訊身分優先於逾期/待回——實測 18 筆翻轉有 16 筆閒置>24h，"
+        + "排在 overdue 之後會被 actionSeen 吃掉而永遠顯示不成已結案回訊）",
+        idxOf("ordRt") < idxOf("ordP"), [idxOf("ordRt"), idxOf("ordP")]);
+  check("LR17b 排序：returned < overdue（同上）",
+        idxOf("ordRt") < idxOf("ordO"), [idxOf("ordRt"), idxOf("ordO")]);
   check("LR17c 排序：returned < close", idxOf("ordRt") < idxOf("ordC"),
         [idxOf("ordRt"), idxOf("ordC")]);
   check("LR17d 四列各自恰好一次、總數 4",
@@ -675,9 +676,9 @@ function test_returnedFromClosed() {
   var rRtOld = R({ id: "ordRtOld", 委託人: "久未回", 狀態: QJ.STATUS.HUMAN,
                    結案日期: daysAgo(30), lastInteraction: daysAgo(5) });
   var sOld = QJ.logic.analyze([rRtOld], ORD);
-  check("LR19 returned + 已逾期 → actions kind 為 overdue（逾期優先，仍只列一次）",
-        sOld.actions.length === 1 && sOld.actions[0].kind === "overdue",
-        sOld.actions.map(function (a) { return a.kind; }));
+  check("LR19 returned + 已逾期 → kind 為 returned（回訊身分承載資訊；逾期仍由「已等 N 天」chip 表達），且只列一次",
+        sOld.actions.length === 1 && sOld.actions[0].kind === "returned",
+        [sOld.actions.length, sOld.actions[0] && sOld.actions[0].kind]);
   check("LR19b 同一筆的 queue.returned 仍為 true（高亮分流不被 actions 分類影響）",
         sOld.queue[0].returned === true, sOld.queue[0].returned);
 
