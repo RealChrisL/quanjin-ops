@@ -183,6 +183,18 @@ button { font-family:var(--fb); cursor:pointer; border-radius:var(--radius); }
 .roc-date { margin:5px 0 0; font-family:var(--fm); font-size:13px; color:var(--gold); letter-spacing:.5px; }
 .mh-right { display:flex; align-items:flex-end; gap:16px; }
 .mh-status { display:flex; flex-direction:column; align-items:flex-end; gap:4px; text-align:right; }
+/* 週報/廣告健檢連結晶片(2026-08-21)— 沿用晶片語彙:方角、1.5px 框、mono 小字;
+   朱紅/金各一以「明顯但不搶版面」;行動版隨 .mh-right 換行規則自然流動 */
+.mh-links { display:flex; gap:8px; align-items:center; }
+.mh-link {
+  font-family:var(--fm); font-size:12.5px; font-weight:700;
+  padding:4px 10px; border:1.5px solid; text-decoration:none;
+  white-space:nowrap; background:var(--panel);
+}
+.mh-link:active { transform:translateY(1px); }
+.mh-link-report { color:var(--accent); border-color:var(--accent); }
+.mh-link-ads    { color:var(--gold);   border-color:var(--gold); }
+.mh-link:hover  { background:var(--ink); color:var(--seal-text); border-color:var(--ink); }
 .conn-status {
   font-size:12.5px; font-weight:700;
   padding:3px 10px;
