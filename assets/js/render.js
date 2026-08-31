@@ -91,8 +91,13 @@
        (已等 X 小時是內疚指標,距預約 X 小時才是行動指標)。
        「尚未連結客戶紀錄」放尾端:實測 29/31 都有它,打頭就是壁紙。 */
     var meta = el("div", "bk-meta");
-    if (r.until_h != null) meta.appendChild(el("span", "", "距預約 " + _hrs(r.until_h)));
-    if (r.waited_h != null) meta.appendChild(el("span", "", "已等 " + _hrs(r.waited_h)));
+    if (r.until_h != null) {
+      // 距預約 < 24h 用強調色,與既有 .cta-chip.cta-wait 同一手法 —— 那是
+      // 唯一會改變當下行為的數字,值得吃掉版面上的注意力預算。
+      meta.appendChild(el("span", "bk-chip" + (r.until_h < 24 ? " bk-soon" : ""),
+                          "距預約 " + _hrs(r.until_h)));
+    }
+    if (r.waited_h != null) meta.appendChild(el("span", "bk-chip", "已等 " + _hrs(r.waited_h)));
     if (r.nudges > 0) meta.appendChild(el("span", "bk-chip", "已在 LINE 提醒 " + r.nudges + " 次"));
     if (!r.matched) meta.appendChild(el("span", "bk-chip", "尚未連結客戶紀錄"));
     if (r.phone) {

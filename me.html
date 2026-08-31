@@ -7,14 +7,18 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;600;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="./assets/css/me.css?v=20260716b">
+  <link rel="stylesheet" href="./assets/css/me.css?v=20260831a">
 </head>
 <body>
   <header id="me-head" class="me-head"></header>
+  <!-- 預約面板（2026-08-31）。只有 admin 看得到 —— 不是靠前端判斷，是
+       /booking-panel 對 team_member 回 401，載入失敗就整區隱藏（自帶閘門）。 -->
+  <section id="me-booking" class="booking-panel" hidden></section>
+
   <main id="me-list" class="me-list"></main>
   <!-- 全所客戶清單（僅 admin/developer 身分渲染；team_member 完全不出現，伺服器亦 403） -->
   <section id="me-clients" class="me-clients"></section>
   <div id="me-toast" class="me-toast" hidden></div>
-  <script src="./assets/js/me.js?v=20260716c" defer></script>
+  <script src="./assets/js/me.js?v=20260831a" defer></script>
 </body>
 </html>

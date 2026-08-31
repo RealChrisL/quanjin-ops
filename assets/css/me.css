@@ -4,6 +4,7 @@
   --ink:#181410; --ink2:#5A5142; --faint:#8C8169;
   --accent:#C0392B; --gold:#9A7B3F; --ok:#3D6B52; --warn:#A87C1F; --danger:#C0392B;
   --rule:#D6CDB8; --rule2:#B6A98A; --seal-text:#F6F1E4;
+  --radius:0;
   --fd:"Noto Serif TC",serif; --fb:"Noto Sans TC",sans-serif; --fm:"IBM Plex Mono",monospace;
 }
 *{box-sizing:border-box;}
@@ -110,3 +111,44 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--fb);-webki
 .me-b-close{color:var(--ok);}
 /* 本日待辦（全所）承辦人下拉 */
 .me-osel{width:100%;padding:10px 12px;margin:2px 0 10px;font-family:var(--fb);font-size:14px;color:var(--ink);background:#fff;border:1.5px solid var(--ink);border-radius:0;-webkit-appearance:none;}
+
+
+/* ── 預約面板（2026-08-31）——與 admin 戰情室共用同一套視覺。
+   me.css 與 styles.css 的 :root token 逐字相同,所以樣式可直接沿用;
+   .cta 按鈕基礎樣式原本只在 styles.css,一併帶過來。 */
+.cta {
+  border:2px solid var(--ink);
+  background:var(--panel2); color:var(--ink);
+  padding:8px 14px; font-size:13.5px; font-weight:700;
+  border-radius:var(--radius);
+  display:inline-flex; align-items:center; gap:6px;
+}
+.cta.cta-ok { background:var(--ok); color:var(--seal-text); }
+.cta.cta-accent { background:var(--accent); color:var(--seal-text); border-color:var(--ink); }
+.cta.cta-ink { background:var(--ink); color:var(--seal-text); }
+/* ── 預約面板（2026-08-31）─────────────────────────────────────────────
+   跟隨戰情室既有語彙:朱墨色 token、2px 墨線邊框、6px 左緣色帶分辨類別
+   （同 .cta-row.kind-pending / kind-overdue）、chip 沿用 .cta-chip 的形狀。
+   零寫死顏色 —— 全部走 var()，換主題時一起走。 */
+.booking-panel { margin:14px 0 18px; }
+.bk-head  { font-family:var(--fd); font-weight:700; font-size:15px; margin:0 0 2px; color:var(--ink); }
+.bk-head2 { font-family:var(--fd); font-weight:700; font-size:14px; margin:16px 0 2px; color:var(--ink2); }
+.bk-sub   { font-family:var(--fb); font-size:12px; color:var(--ink2); margin:0 0 10px; }
+.bk-err   { font-family:var(--fb); font-size:12px; color:var(--ink2);
+            border:1px solid var(--rule2); background:var(--panel2); padding:10px 12px; margin:0; }
+.bk-row   { background:var(--panel); border:2px solid var(--ink); padding:12px 14px; margin:8px 0; }
+.bk-row.bk-pend { border-left:6px solid var(--warn); }
+.bk-row.bk-conf { border-left:6px solid var(--ok); }
+.bk-main  { display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; }
+.bk-name  { font-family:var(--fd); font-weight:700; font-size:14px; color:var(--ink); }
+.bk-slot  { font-family:var(--fm); font-size:13px; color:var(--ink); }
+.bk-mode  { font-family:var(--fb); font-size:12px; color:var(--ink2); }
+.bk-meta  { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center;
+            font-family:var(--fb); font-size:11.5px; color:var(--ink2); }
+.bk-chip  { font-family:var(--fb); font-size:11.5px; padding:2px 8px;
+            border:1px solid var(--rule2); background:var(--panel2); color:var(--ink2); }
+.bk-chip.bk-soon { color:var(--accent); border-color:var(--accent); font-weight:600; }
+.bk-chip.bk-tel  { color:var(--accent); text-decoration:none; }
+.bk-note  { font-family:var(--fb); font-size:12px; color:var(--ink); margin-top:7px;
+            padding-left:8px; border-left:2px solid var(--rule2); }
+.bk-acts  { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }

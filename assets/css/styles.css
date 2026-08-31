@@ -748,24 +748,28 @@ table.queue tbody tr.row-returned { background:rgba(91,124,153,.06); }
 }
 
 /* ── 預約面板（2026-08-31）─────────────────────────────────────────────
-   沿用行動清單的視覺重量：卡片式、無 emoji 按鈕、chip 用中性灰。
-   pending 與 confirmed 用左緣色帶分辨，不用背景色（背景色在長清單裡
-   會變成噪音，這個教訓本專案在「已結案回訊不得用朱色 row-new」學過）。 */
-.booking-panel{margin:14px 0 18px}
-.bk-head{margin:0 0 2px;font-weight:800;font-size:1rem}
-.bk-head2{margin:14px 0 2px;font-weight:800;font-size:.95rem;color:var(--muted,#666)}
-.bk-sub{margin:0 0 10px;font-size:.86rem;color:var(--muted,#666)}
-.bk-err{margin:0;padding:10px 12px;border:1px solid var(--rule,#ddd);font-size:.88rem;color:var(--muted,#666)}
-.bk-row{background:var(--card,#fff);border:1px solid var(--rule,#e0e0e0);
-        border-left:3px solid var(--rule,#e0e0e0);padding:10px 13px;margin:7px 0}
-.bk-row.bk-pend{border-left-color:#C0392B}
-.bk-row.bk-conf{border-left-color:#2E7D32}
-.bk-main{display:flex;flex-wrap:wrap;gap:10px;align-items:baseline}
-.bk-name{font-weight:700}
-.bk-slot{font-variant-numeric:tabular-nums}
-.bk-mode{font-size:.87rem;color:var(--muted,#666)}
-.bk-meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:4px;font-size:.82rem;color:var(--muted,#666)}
-.bk-chip{border:1px solid var(--rule,#ddd);padding:0 7px;border-radius:2px}
-.bk-tel{text-decoration:none}
-.bk-note{margin-top:6px;font-size:.85rem;padding-left:2px}
-.bk-acts{display:flex;gap:8px;margin-top:9px;flex-wrap:wrap}
+   跟隨戰情室既有語彙:朱墨色 token、2px 墨線邊框、6px 左緣色帶分辨類別
+   （同 .cta-row.kind-pending / kind-overdue）、chip 沿用 .cta-chip 的形狀。
+   零寫死顏色 —— 全部走 var()，換主題時一起走。 */
+.booking-panel { margin:14px 0 18px; }
+.bk-head  { font-family:var(--fd); font-weight:700; font-size:15px; margin:0 0 2px; color:var(--ink); }
+.bk-head2 { font-family:var(--fd); font-weight:700; font-size:14px; margin:16px 0 2px; color:var(--ink2); }
+.bk-sub   { font-family:var(--fb); font-size:12px; color:var(--ink2); margin:0 0 10px; }
+.bk-err   { font-family:var(--fb); font-size:12px; color:var(--ink2);
+            border:1px solid var(--rule2); background:var(--panel2); padding:10px 12px; margin:0; }
+.bk-row   { background:var(--panel); border:2px solid var(--ink); padding:12px 14px; margin:8px 0; }
+.bk-row.bk-pend { border-left:6px solid var(--warn); }
+.bk-row.bk-conf { border-left:6px solid var(--ok); }
+.bk-main  { display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; }
+.bk-name  { font-family:var(--fd); font-weight:700; font-size:14px; color:var(--ink); }
+.bk-slot  { font-family:var(--fm); font-size:13px; color:var(--ink); }
+.bk-mode  { font-family:var(--fb); font-size:12px; color:var(--ink2); }
+.bk-meta  { display:flex; flex-wrap:wrap; gap:6px; margin-top:6px; align-items:center;
+            font-family:var(--fb); font-size:11.5px; color:var(--ink2); }
+.bk-chip  { font-family:var(--fb); font-size:11.5px; padding:2px 8px;
+            border:1px solid var(--rule2); background:var(--panel2); color:var(--ink2); }
+.bk-chip.bk-soon { color:var(--accent); border-color:var(--accent); font-weight:600; }
+.bk-chip.bk-tel  { color:var(--accent); text-decoration:none; }
+.bk-note  { font-family:var(--fb); font-size:12px; color:var(--ink); margin-top:7px;
+            padding-left:8px; border-left:2px solid var(--rule2); }
+.bk-acts  { display:flex; gap:8px; margin-top:10px; flex-wrap:wrap; }

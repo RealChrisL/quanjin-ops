@@ -76,6 +76,118 @@
     list.appendChild(el("p", "me-empty", msg));
   }
 
+
+  /* ── 預約面板（2026-08-31）─────────────────────────────────────────────
+     謝代書與奕溱兩頁都用（實測近 7 日各自打過 /my-cases 與 /clients），而
+     預約確認是他們的職責，所以個人頁也要有。
+
+     **不靠前端判斷角色** —— /booking-panel 對 team_member 回 401，非 2xx 就
+     整區隱藏。閘門在伺服器,前端只是不渲染;誰改壞了前端也不會漏資料。 */
+  function loadBookings() {
+    var host = document.getElementById("me-booking");
+    if (!host) return;
+    api("/booking-panel").then(function (r) {
+      if (!r.ok) { host.hidden = true; return null; }   // 401 = 非 admin，靜靜隱藏
+      return r.json();
+    }).then(function (d) {
+      if (!d) return;
+      renderBookingPanel(host, d);
+    }).catch(function () { host.hidden = true; });
+  }
+
+  function _bkHrs(n) {
+    if (n == null) return "";
+    if (n < 1) return "不到 1 小時";
+    if (n < 48) return "約 " + Math.round(n) + " 小時";
+    return "約 " + Math.round(n / 24) + " 天";
+  }
+
+  function renderBookingPanel(host, d) {
+    clear(host);
+    var pend = (d && d.pending) || [], conf = (d && d.confirmed) || [];
+    if (!pend.length && !conf.length) { host.hidden = true; return; }
+    host.hidden = false;
+    if (pend.length) {
+      var soon = pend[0], urgent = soon && soon.until_h != null && soon.until_h < 24;
+      host.appendChild(el("p", "bk-head", "📅 預約待確認 " + pend.length + " 筆　最近一筆"
+        + (urgent ? "就在 " : "：") + (soon ? soon.slot : "")));
+      host.appendChild(el("p", "bk-sub", urgent
+        ? "客戶依這個時間安排了行程；在確認或婉拒之前，他不會收到任何通知。"
+        : "客戶送出後已收到「由團隊確認後通知您」；在確認或婉拒之前，客戶還在等這則通知。"));
+      pend.forEach(function (r) { host.appendChild(bkRow(r)); });
+    }
+    if (conf.length) {
+      host.appendChild(el("p", "bk-head2", "✅ 已確認的預約 " + conf.length + " 筆"));
+      conf.forEach(function (r) { host.appendChild(bkRow(r)); });
+    }
+  }
+
+  function bkRow(r) {
+    var pending = r.status === "pending";
+    var row = el("div", "bk-row" + (pending ? " bk-pend" : " bk-conf"));
+    var main = el("div", "bk-main");
+    main.appendChild(el("span", "bk-name", r.name || "(未具名)"));
+    main.appendChild(el("span", "bk-slot", r.slot || "(時間待核)"));
+    main.appendChild(el("span", "bk-mode", r.mode || ""));
+    row.appendChild(main);
+    var meta = el("div", "bk-meta");
+    if (r.until_h != null) meta.appendChild(el("span",
+      "bk-chip" + (r.until_h < 24 ? " bk-soon" : ""), "距預約 " + _bkHrs(r.until_h)));
+    if (r.waited_h != null) meta.appendChild(el("span", "bk-chip", "已等 " + _bkHrs(r.waited_h)));
+    if (r.nudges > 0) meta.appendChild(el("span", "bk-chip", "已在 LINE 提醒 " + r.nudges + " 次"));
+    if (!r.matched) meta.appendChild(el("span", "bk-chip", "尚未連結客戶紀錄"));
+    if (r.phone) {
+      var a = el("a", "bk-chip bk-tel", "📞 " + r.phone);
+      a.href = "tel:" + String(r.phone).replace(/[^\d+]/g, "");
+      meta.appendChild(a);
+    }
+    row.appendChild(meta);
+    if (r.notes) row.appendChild(el("div", "bk-note", "客戶備註：" + r.notes));
+    var acts = el("div", "bk-acts");
+    if (pending) {
+      acts.appendChild(bkBtn("確認預約", "cta-ok", r, "confirm"));
+      acts.appendChild(bkBtn("婉拒", "cta-accent", r, "decline"));
+    } else {
+      acts.appendChild(bkBtn("取消預約", "cta-accent", r, "cancel"));
+    }
+    row.appendChild(acts);
+    return row;
+  }
+
+  var _bkBusy = {};
+  function bkBtn(label, cls, r, action) {
+    var b = el("button", "cta " + cls, label);
+    b.type = "button";
+    if (_bkBusy[r.booking_uid]) b.disabled = true;
+    b.addEventListener("click", function () {
+      var nm = r.name || "這位客戶", sl = r.slot || "";
+      if (action === "decline" && !window.confirm(
+        "婉拒「" + nm + "」" + sl + " 的預約？\n系統會取消這筆申請，並通知客戶重新安排時間。")) return;
+      if (action === "cancel" && !window.confirm(
+        "取消「" + nm + "」" + sl + " 這筆已確認的預約？\n系統會取消這場會議，並通知客戶預約已取消。\n客戶先前已收到確認通知，取消後可能需要另行聯繫說明。")) return;
+      if (action === "confirm" && !window.confirm(
+        "確認「" + nm + "」" + sl + " 的預約？\n系統會通知客戶預約已成立，並附上時間與地點。")) return;
+      b.disabled = true; _bkBusy[r.booking_uid] = 1;
+      api("/booking-action", { method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_uid: r.booking_uid, action: action })
+      }).then(function (x) { return x.json().catch(function () { return {}; })
+          .then(function (j) { if (!x.ok || j.ok !== true) { var e = new Error(j.error || x.status); e.status = x.status; throw e; } return j; }); })
+        .then(function (j) {
+          delete _bkBusy[r.booking_uid];
+          toast((j.changed ? "✓ " : "") + (j.message || "已送出"), j.changed ? "ok" : "");
+          loadBookings();
+        }).catch(function (e) {
+          delete _bkBusy[r.booking_uid]; b.disabled = false;
+          var code = (e && e.status) || 0;
+          toast(code ? ("預約動作失敗（" + code + "）。這筆狀態未變更，客戶沒有收到任何訊息，請重試。")
+                     : "預約動作未能完成（網路）。無法確定是否已送出，請重新整理後再看這筆的狀態，避免重複操作。",
+                code ? "danger" : "warn");
+        });
+    });
+    return b;
+  }
+
   function boot() {
     // 無 token 的引導要說「連結在哪」：同仁的專屬連結就在他們與全謹 OA 的對話紀錄裡
     // （發放時傳的那則），往上滾就找得到 — 不說位置的話同仁會卡住來問人（F2）。
@@ -83,7 +195,7 @@
     // 載入中佔位：首次從 LINE 點進來會有 1～3 秒抓資料，空白畫面會被當成連結壞掉。
     clear(list); list.appendChild(el("p", "me-empty", "載入中，請稍候…"));
     api("/whoami").then(function (r) { return r.ok ? r.json() : Promise.reject(r.status); })
-      .then(function (w) { me = w; load(); startPoll(); if (isAdmin()) loadClients(); })
+      .then(function (w) { me = w; load(); startPoll(); if (isAdmin()) { loadClients(); loadBookings(); } })
       .catch(function (s) { gate(s === 401 ? "連結已失效，請向全謹團隊索取新的連結。" : "連線失敗，請稍後再試。"); });
   }
 
