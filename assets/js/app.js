@@ -216,6 +216,10 @@
   }
 
   function onClick(ev) {
+    // 預約按鈕先攔（它用 data-bk-action，不是 data-cta —— 預約的鍵是
+    // cal.com booking_uid，不是 Airtable recordId）
+    var _bk = ev.target.closest ? ev.target.closest("[data-bk-action]") : null;
+    if (_bk) { onBookingClick(_bk); return; }
     var btn = ev.target.closest ? ev.target.closest("[data-cta]") : null;
     if (!btn) return;
     var cta = btn.getAttribute("data-cta"), id = btn.getAttribute("data-id");
@@ -304,6 +308,56 @@
     doPatch(id, { 狀態: next }, function (r) { r.狀態 = next; }, label, { action: action });
   }
 
+  /* ── 預約面板（2026-08-31）─────────────────────────────────────────────
+     掛在 120 秒的 proxy 計時器上，不進 25 秒熱迴圈 —— 那條走瀏覽器直連
+     Airtable，與預約無關。取數失敗傳 null（不是空陣列），renderBookings
+     會顯示說明行而不是靜靜隱藏：「隱藏」與「壞掉」必須分得出來。 */
+  function refreshBookings() {
+    if (!QJ.airtable || !QJ.airtable.fetchBookings) return;
+    var host = document.getElementById("booking-panel");
+    return QJ.airtable.fetchBookings().then(function (d) {
+      QJ.render.renderBookings(host, d);
+    }).catch(function () {
+      QJ.render.renderBookings(host, null);
+    });
+  }
+
+  /* 預約按鈕。刻意**不做樂觀更新** —— 一次確認的「成功」有兩層且可獨立
+     失敗（cal.com 回寫、客戶推播），樂觀 UI 會顯示「已確認」而客戶其實
+     沒收到。等伺服器真相，然後把 dispatcher 那句話逐字轉達 —— 它把四種
+     通知結果說得比任何 UI 文案都準。 */
+  function onBookingClick(btn) {
+    var act = btn.getAttribute("data-bk-action");
+    var uid = btn.getAttribute("data-bk-uid");
+    var nm = btn.getAttribute("data-bk-name") || "這位客戶";
+    var sl = btn.getAttribute("data-bk-slot") || "";
+    if (!act || !uid) return;
+    if (act === "decline" &&
+        !window.confirm("婉拒「" + nm + "」" + sl + " 的預約？\n系統會取消這筆申請，並通知客戶重新安排時間。")) return;
+    if (act === "cancel" &&
+        !window.confirm("取消「" + nm + "」" + sl + " 這筆已確認的預約？\n系統會取消這場會議，並通知客戶預約已取消。\n客戶先前已收到確認通知，取消後可能需要另行聯繫說明。")) return;
+    if (act === "confirm" &&
+        !window.confirm("確認「" + nm + "」" + sl + " 的預約？\n系統會通知客戶預約已成立，並附上時間與地點。")) return;
+    btn.disabled = true;
+    if (QJ.render.bkInflight) QJ.render.bkInflight[uid] = 1;
+    function _done() { if (QJ.render.bkInflight) delete QJ.render.bkInflight[uid]; }
+    QJ.airtable.bookingAction(uid, act).then(function (j) {
+      _done();
+      QJ.render.toast((j.changed ? "✓ " : "") + (j.message || "已送出"),
+                      j.changed ? "ok" : "info");
+      return refreshBookings();
+    }).catch(function (e) {
+      _done();
+      btn.disabled = false;
+      var code = (e && e.status) || 0;
+      QJ.render.toast(code
+        ? ("預約動作失敗（" + code + "）。這筆狀態未變更，客戶沒有收到任何訊息，請重試。")
+        : "預約動作未能完成（網路）。無法確定是否已送出，請重新整理後再看這筆的狀態，避免重複操作。",
+        code ? "danger" : "warn");
+    });
+  }
+
+
   function boot() {
     if (state.booting) return;
     state.booting = true;
@@ -357,9 +411,12 @@
     }).then(function () {
       startPolling();
       refreshStats(); refreshCloseReview();
-    refreshReturnedUids(); refreshProxyHealth();
-      if (!state.statsTimer) state.statsTimer = setInterval(function () { refreshStats(); refreshCloseReview();
-    refreshReturnedUids(); }, 120000);
+    refreshReturnedUids(); refreshProxyHealth(); refreshBookings();
+      if (!state.statsTimer) state.statsTimer = setInterval(function () {
+        // 2026-08-31:與 25 秒那條對齊 —— 背景分頁不打 proxy。
+        if (document.hidden) return;
+        refreshStats(); refreshCloseReview();
+        refreshReturnedUids(); refreshBookings(); }, 120000);
       state.booting = false;
     }).catch(function (e) {
       state.booting = false;

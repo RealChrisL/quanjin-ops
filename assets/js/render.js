@@ -29,6 +29,112 @@
 
   /* ---------- 小工具 ---------- */
   function $(id) { return document.getElementById(id); }
+
+  /* ── 預約面板（2026-08-31）─────────────────────────────────────────────
+     為什麼存在:管理員處理預約的唯一表面是 LINE Flex 卡,而 L1/L2 催辦只在
+     上班時間發。實測 2026-08-29 那筆週六 23:58 的預約,到週一 10:00 首次
+     催辦為止靜默 34 小時。戰情室是 pull 通道,正好覆蓋 push 被規則關掉的
+     那段。0 筆時整區隱藏(常駐會被眼睛學會跳過);取數失敗**不隱藏**,顯示
+     一行誠實說明 ——「隱藏」與「壞掉」必須分得出來。 */
+  function renderBookings(host, data) {
+    if (!host) return;
+    clear(host);
+    if (data === null || data === undefined) {
+      host.hidden = false;
+      host.appendChild(el("p", "bk-err",
+        "預約待確認狀態取得失敗 — 這一區暫時無法確認，請至 LINE 確認卡處理，或稍後重新整理。"));
+      return;
+    }
+    var pend = (data && data.pending) || [];
+    var conf = (data && data.confirmed) || [];
+    if (!pend.length && !conf.length) { host.hidden = true; return; }
+    host.hidden = false;
+
+    if (pend.length) {
+      var soon = pend[0];
+      var urgent = soon && soon.until_h != null && soon.until_h < 24;
+      var h = el("p", "bk-head",
+        "📅 預約待確認 " + pend.length + " 筆　最近一筆" +
+        (urgent ? "就在 " : "：") + (soon ? soon.slot : ""));
+      host.appendChild(h);
+      host.appendChild(el("p", "bk-sub", urgent
+        ? "客戶依這個時間安排了行程；在確認或婉拒之前，他不會收到任何通知。"
+        : "客戶送出後已收到「由團隊確認後通知您」；在確認或婉拒之前，客戶還在等這則通知。"));
+      pend.forEach(function (r) { host.appendChild(bookingRow(r)); });
+    }
+    if (conf.length) {
+      host.appendChild(el("p", "bk-head2",
+        "✅ 已確認的預約 " + conf.length + " 筆"));
+      conf.forEach(function (r) { host.appendChild(bookingRow(r)); });
+    }
+  }
+
+  function _hrs(n) {
+    if (n == null) return "";
+    if (n < 1) return "不到 1 小時";
+    if (n < 48) return "約 " + Math.round(n) + " 小時";
+    return "約 " + Math.round(n / 24) + " 天";
+  }
+
+  function bookingRow(r) {
+    var pending = r.status === "pending";
+    var row = el("div", "bk-row" + (pending ? " bk-pend" : " bk-conf"));
+    row.setAttribute("data-buid", r.booking_uid || "");
+
+    var main = el("div", "bk-main");
+    main.appendChild(el("span", "bk-name", r.name || "(未具名)"));
+    main.appendChild(el("span", "bk-slot", r.slot || "(時間待核)"));
+    main.appendChild(el("span", "bk-mode", r.mode || ""));
+    row.appendChild(main);
+
+    /* 次行順序刻意如此:距預約打頭 —— 它是唯一會改變當下行為的數字
+       (已等 X 小時是內疚指標,距預約 X 小時才是行動指標)。
+       「尚未連結客戶紀錄」放尾端:實測 29/31 都有它,打頭就是壁紙。 */
+    var meta = el("div", "bk-meta");
+    if (r.until_h != null) meta.appendChild(el("span", "", "距預約 " + _hrs(r.until_h)));
+    if (r.waited_h != null) meta.appendChild(el("span", "", "已等 " + _hrs(r.waited_h)));
+    if (r.nudges > 0) meta.appendChild(el("span", "bk-chip", "已在 LINE 提醒 " + r.nudges + " 次"));
+    if (!r.matched) meta.appendChild(el("span", "bk-chip", "尚未連結客戶紀錄"));
+    if (r.phone) {
+      var a = el("a", "bk-chip bk-tel", "📞 " + r.phone);
+      a.href = "tel:" + String(r.phone).replace(/[^\d+]/g, "");
+      meta.appendChild(a);
+    }
+    row.appendChild(meta);
+
+    if (r.notes) row.appendChild(el("div", "bk-note", "客戶備註：" + r.notes));
+
+    var acts = el("div", "bk-acts");
+    if (pending) {
+      acts.appendChild(bkBtn("確認預約", "cta-ok", r, "confirm"));
+      acts.appendChild(bkBtn("婉拒", "cta-accent", r, "decline"));
+    } else {
+      /* 已確認的那顆刻意叫「取消預約」不叫「婉拒」—— 客戶那端收到的字是
+         「您的預約已取消」,操作者按下去的字必須和客戶讀到的字對得上。 */
+      acts.appendChild(bkBtn("取消預約", "cta-accent", r, "cancel"));
+    }
+    row.appendChild(acts);
+    return row;
+  }
+
+  var _bkInflight = (window.QJ && QJ._bkInflight) || (window.QJ && (QJ._bkInflight = {})) || {};
+
+  function bkBtn(label, cls, r, action) {
+    var b = el("button", "cta " + cls, label);
+    b.type = "button";
+    // in-flight guard(2026-08-31 qa 驗收):renderBookings 開頭 clear(host) 整區
+    // 重建,disabled 只存在於 DOM 節點上。動作在途時撞上 120 秒輪詢重繪 →
+    // 新按鈕是 enabled → 再點就對同一 booking_uid 發第二次。客戶不會收到雙
+    // 訊息(push_once 擋住),但 cal.com 被打兩次、操作者收到兩則互相矛盾的
+    // toast。狀態必須活在 DOM 之外。
+    if (_bkInflight[r.booking_uid]) { b.disabled = true; }
+    b.setAttribute("data-bk-action", action);
+    b.setAttribute("data-bk-uid", r.booking_uid || "");
+    b.setAttribute("data-bk-name", r.name || "");
+    b.setAttribute("data-bk-slot", r.slot || "");
+    return b;
+  }
+
   function el(tag, cls, text) {
     var n = document.createElement(tag);
     if (cls) n.className = cls;
@@ -1331,6 +1437,11 @@
   // 對外曝露結案審核重繪（app.js 的 refreshCloseReview 取得 /close-review 後直接點繪此面板，
   // 不必等下一輪 25 秒紀錄輪詢）。renderApp/diffUpdate 內部仍呼叫同一個 function。
   R.renderCloseReview = renderCloseReview;
+
+  // 預約面板（2026-08-31）。app.js 取得 /booking-panel 後直接點繪，
+  // 與 25 秒紀錄輪詢分開（那條走瀏覽器直連 Airtable，與 proxy 無關）。
+  R.renderBookings = renderBookings;
+  R.bkInflight = _bkInflight;
 
   window.QJ.render = R;
 })();

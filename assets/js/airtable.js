@@ -613,6 +613,28 @@
   /* ---- 24/7 代理戰績：GET /stats（唯讀彙總，需授權）。失敗回 null ---- */
   function fetchStats() { return _proxyGet("/stats"); }
 
+  /* 預約面板（2026-08-31）。非 2xx／網路失敗 → null，呼叫端不渲染（沿用
+     _proxyGet 的既有降級契約）。 */
+  function fetchBookings() { return _proxyGet("/booking-panel"); }
+
+  /* 預約動作：POST /booking-action。刻意**不走 /cta** —— 後者硬性要求
+     Airtable recordId，而預約的鍵是 cal.com booking_uid，兩個命名空間實測
+     29/31 不相交。後端會子行程送出人類會打的同一道指令，所以客戶端文案、
+     終態守衛、exactly-once 全部沿用，前端零商業邏輯。 */
+  function bookingAction(bookingUid, action) {
+    var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/booking-action";
+    return fetch(url, {
+      method: "POST",
+      headers: { "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""), "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
+      body: JSON.stringify({ booking_uid: bookingUid, action: action })
+    }).then(function (r) {
+      return r.json().catch(function () { return {}; }).then(function (j) {
+        if (!r.ok || !j || j.ok !== true) { var e = new Error((j && j.error) || ("預約動作失敗 HTTP " + r.status)); e.status = r.status; throw e; }
+        return j;
+      });
+    });
+  }
+
   /* ---- 同仁名冊：GET /staff（唯讀，內部同仁 id，需授權）。
    *      單一真實來源＝bot config.json；失敗回 null → app.js 沿用硬編後備名冊。 ---- */
   function fetchStaff() { return _proxyGet("/staff"); }
@@ -666,7 +688,7 @@
     reopenRecord: reopenRecord,
     CLOSED_SEARCH_MAX: CLOSED_SEARCH_MAX,
     cta: cta,
-    fetchStats: fetchStats,
+    fetchStats: fetchStats, fetchBookings: fetchBookings, bookingAction: bookingAction,
     fetchStaff: fetchStaff,
     fetchCloseReview: fetchCloseReview,
     fetchReturnedUids: fetchReturnedUids,
