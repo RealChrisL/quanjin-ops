@@ -343,8 +343,13 @@ function testRender() {
         missing.length === 0, missing);
   check("R19 ⭐ pending/confirmed 用左緣色帶,**不**沿用 .row-new 朱色" +
         "(朱色的既定語意是「新客戶進線」—— 已結案回訊那次的教訓)",
+        // 2026-08-31:原本只認 `border-left-color`,但 `border-left: 6px solid
+        // var(--warn)` 一次寫全是達到同一效果的合法寫法(而且那正是既有
+        // .cta-row.kind-pending 的寫法)。判定式要對得上不變量 ——「有沒有用
+        // 左緣色帶分辨類別」,不是「有沒有用某個特定 CSS 屬性名」。
         !/\.bk-(row|pend|conf)[^{]*\{[^}]*row-new/.test(css)
-        && /\.bk-row\.bk-pend\s*\{[^}]*border-left-color/.test(css));
+        && /\.bk-row\.bk-pend\s*\{[^}]*border-left(-color)?\s*:/.test(css)
+        && /\.bk-row\.bk-conf\s*\{[^}]*border-left(-color)?\s*:/.test(css));
 
   var html = fs.readFileSync(path.join(__dirname, "..", "index.html"), "utf8");
   check("R20 index.html 有 #booking-panel 且預設 hidden(首屏不閃一塊空白)",
