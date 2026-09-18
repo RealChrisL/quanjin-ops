@@ -326,6 +326,7 @@
      失敗（cal.com 回寫、客戶推播），樂觀 UI 會顯示「已確認」而客戶其實
      沒收到。等伺服器真相，然後把 dispatcher 那句話逐字轉達 —— 它把四種
      通知結果說得比任何 UI 文案都準。 */
+  var _bkConflictSeen = {};
   function onBookingClick(btn) {
     var act = btn.getAttribute("data-bk-action");
     var uid = btn.getAttribute("data-bk-uid");
@@ -336,12 +337,16 @@
         !window.confirm("婉拒「" + nm + "」" + sl + " 的預約？\n系統會取消這筆申請，並通知客戶重新安排時間。")) return;
     if (act === "cancel" &&
         !window.confirm("取消「" + nm + "」" + sl + " 這筆已確認的預約？\n系統會取消這場會議，並通知客戶預約已取消。\n客戶先前已收到確認通知，取消後可能需要另行聯繫說明。")) return;
+    var _sel = (btn.parentNode && btn.parentNode.querySelector) ? btn.parentNode.querySelector(".bk-dur") : null;
+    var mins = _sel ? _sel.value : "";
     if (act === "confirm" &&
-        !window.confirm("確認「" + nm + "」" + sl + " 的預約？\n系統會通知客戶預約已成立，並附上時間與地點。")) return;
+        !window.confirm("確認「" + nm + "」" + sl + (mins ? "（" + mins + " 分鐘）" : "") + " 的預約？\n系統會通知客戶預約已成立，並附上時間與加入行事曆的方式。")) return;
+    if (act === "duration" &&
+        !window.confirm("把「" + nm + "」" + sl + " 的時長改為 " + mins + " 分鐘？\n系統會更新 Google 日曆的結束時間；變長時會通知客戶，變短不通知。")) return;
     btn.disabled = true;
     if (QJ.render.bkInflight) QJ.render.bkInflight[uid] = 1;
     function _done() { if (QJ.render.bkInflight) delete QJ.render.bkInflight[uid]; }
-    QJ.airtable.bookingAction(uid, act).then(function (j) {
+    QJ.airtable.bookingAction(uid, act, (act === "confirm" || act === "duration") ? mins : undefined).then(function (j) {
       _done();
       QJ.render.toast((j.changed ? "✓ " : "") + (j.message || "已送出"),
                       j.changed ? "ok" : "info");
@@ -365,6 +370,21 @@
     showApp();
 
     document.addEventListener("click", onClick);
+    /* 時長下拉取得焦點時查一次日曆衝突（每筆只查一次；失敗就不標）。
+       與 LINE picker 同一支後端查詢，唯讀、6 秒上限。 */
+    document.addEventListener("focusin", function (ev) {
+      var t = ev.target;
+      if (!t || !t.classList || !t.classList.contains("bk-dur")) return;
+      var uid = t.getAttribute("data-bk-dur");
+      if (!uid || _bkConflictSeen[uid] || !QJ.airtable.fetchBookingConflicts) return;
+      _bkConflictSeen[uid] = 1;
+      var row = t.closest ? t.closest(".bk-row") : null;
+      QJ.airtable.fetchBookingConflicts(uid).then(function (j) {
+        if (row && j && j.ok && j.conflicts && QJ.render.annotateBookingConflicts) {
+          QJ.render.annotateBookingConflicts(row, j.conflicts);
+        }
+      }).catch(function () {});
+    });
     document.addEventListener("change", function (ev) {
       var t = ev.target;
       if (t && t.classList && t.classList.contains("reassign-select")) {

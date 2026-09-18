@@ -760,6 +760,10 @@ table.queue tbody tr.row-returned { background:rgba(91,124,153,.06); }
 .bk-row   { background:var(--panel); border:2px solid var(--ink); padding:12px 14px; margin:8px 0; }
 .bk-row.bk-pend { border-left:6px solid var(--warn); }
 .bk-row.bk-conf { border-left:6px solid var(--ok); }
+/* 時長下拉（2026-09-18，同步 LINE ⏱ 選時長）：與 chip 同字級，緊貼按鈕列 */
+.bk-dur   { font-family:var(--fb); font-size:12.5px; padding:4px 8px; border:1.5px solid var(--ink);
+            background:var(--panel); color:var(--ink); border-radius:4px; margin-right:6px; }
+.bk-chip.bk-conflict { color:#C0392B; border-color:#C0392B; background:#FDECEA; font-weight:600; }
 .bk-main  { display:flex; flex-wrap:wrap; gap:12px; align-items:baseline; }
 .bk-name  { font-family:var(--fd); font-weight:700; font-size:14px; color:var(--ink); }
 .bk-slot  { font-family:var(--fm); font-size:13px; color:var(--ink); }
