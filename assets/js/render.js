@@ -110,16 +110,74 @@
     if (r.notes) row.appendChild(el("div", "bk-note", "客戶備註：" + r.notes));
 
     var acts = el("div", "bk-acts");
+    /* 時長下拉（2026-09-18，同步 LINE 的 ⏱ 選時長）：選項與預設由後端給
+       （booking_render 是唯一產地）；沒給就退回只有按鈕的舊樣子。已確認的列
+       選到的值送 action=duration（改時長：更新日曆、變長時通知客戶）。 */
+    var sel = bkDurSelect(r);
     if (pending) {
+      if (sel) acts.appendChild(sel);
       acts.appendChild(bkBtn("確認預約", "cta-ok", r, "confirm"));
       acts.appendChild(bkBtn("婉拒", "cta-accent", r, "decline"));
     } else {
+      if (sel) {
+        acts.appendChild(sel);
+        acts.appendChild(bkBtn("改時長", "cta-ok", r, "duration"));
+      }
       /* 已確認的那顆刻意叫「取消預約」不叫「婉拒」—— 客戶那端收到的字是
          「您的預約已取消」,操作者按下去的字必須和客戶讀到的字對得上。 */
       acts.appendChild(bkBtn("取消預約", "cta-accent", r, "cancel"));
     }
     row.appendChild(acts);
     return row;
+  }
+
+  function bkDurSelect(r) {
+    var choices = Array.isArray(r.choices) ? r.choices : [];
+    if (!choices.length) return null;
+    var cur = (r.duration_min != null) ? Number(r.duration_min) : Number(r.default_min);
+    var s = document.createElement("select");
+    s.className = "bk-dur";
+    s.setAttribute("data-bk-dur", r.booking_uid || "");
+    s.setAttribute("aria-label", "預約時長");
+    choices.forEach(function (n) {
+      var o = document.createElement("option");
+      o.value = String(n);
+      o.textContent = n + " 分鐘" + (Number(n) === Number(r.default_min) ? "（預設）" : "");
+      if (Number(n) === cur) o.selected = true;
+      s.appendChild(o);
+    });
+    return s;
+  }
+
+  /* 日曆衝突標記（2026-09-18，同 LINE picker 的淡紅）：conflicts 形如
+     {"90": {summary, start}}。撞到的選項文字加 ⚠️，列尾加一顆說明 chip；
+     null/空 → 什麼都不動（退回固定清單）。只標記不禁用 —— 背靠背是人的決定。 */
+  function annotateBookingConflicts(row, conflicts) {
+    if (!row || !conflicts) return 0;
+    var keys = Object.keys(conflicts).map(Number).filter(function (n) { return !isNaN(n); }).sort(function (a, b) { return a - b; });
+    if (!keys.length) return 0;
+    var sel = row.querySelector(".bk-dur");
+    if (sel) {
+      for (var i = 0; i < sel.childNodes.length; i++) {
+        var o = sel.childNodes[i];
+        if (o && o.value != null && conflicts[String(o.value)] && !/⚠️/.test(o.textContent)) {
+          o.textContent = o.textContent + " ⚠️";
+          o.setAttribute("data-conflict", "1");
+        }
+      }
+    }
+    var meta = row.querySelector(".bk-meta");
+    if (meta && !row.querySelector(".bk-conflict")) {
+      var first = conflicts[String(keys[0])] || {};
+      var hhmm = "";
+      try {
+        var d = new Date(String(first.start || ""));
+        if (!isNaN(d.getTime())) hhmm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+      } catch (e) {}
+      meta.appendChild(el("span", "bk-chip bk-conflict",
+        "⚠️ " + keys[0] + " 分鐘起會與「" + (first.summary || "另一個行程") + "」" + (hhmm ? "（" + hhmm + "）" : "") + "重疊"));
+    }
+    return keys.length;
   }
 
   var _bkInflight = (window.QJ && QJ._bkInflight) || (window.QJ && (QJ._bkInflight = {})) || {};
@@ -1447,6 +1505,7 @@
   // 與 25 秒紀錄輪詢分開（那條走瀏覽器直連 Airtable，與 proxy 無關）。
   R.renderBookings = renderBookings;
   R.bkInflight = _bkInflight;
+  R.annotateBookingConflicts = annotateBookingConflicts;
 
   window.QJ.render = R;
 })();

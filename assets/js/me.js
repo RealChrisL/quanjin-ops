@@ -144,33 +144,79 @@
     row.appendChild(meta);
     if (r.notes) row.appendChild(el("div", "bk-note", "客戶備註：" + r.notes));
     var acts = el("div", "bk-acts");
+    /* 時長下拉（2026-09-18，同步 LINE ⏱ 選時長；選項/預設由後端給）。已確認的列
+       選到的值送 action=duration（改時長）。取得焦點時查一次日曆衝突並標 ⚠️。 */
+    var sel = null;
+    if (Array.isArray(r.choices) && r.choices.length) {
+      sel = document.createElement("select");
+      sel.className = "bk-dur";
+      sel.setAttribute("data-bk-dur", r.booking_uid || "");
+      sel.setAttribute("aria-label", "預約時長");
+      var cur = (r.duration_min != null) ? Number(r.duration_min) : Number(r.default_min);
+      r.choices.forEach(function (n) {
+        var o = document.createElement("option");
+        o.value = String(n);
+        o.textContent = n + " 分鐘" + (Number(n) === Number(r.default_min) ? "（預設）" : "");
+        if (Number(n) === cur) o.selected = true;
+        sel.appendChild(o);
+      });
+      sel.addEventListener("focus", function () { bkConflicts(row, sel, r.booking_uid); });
+    }
     if (pending) {
-      acts.appendChild(bkBtn("確認預約", "cta-ok", r, "confirm"));
+      if (sel) acts.appendChild(sel);
+      acts.appendChild(bkBtn("確認預約", "cta-ok", r, "confirm", sel));
       acts.appendChild(bkBtn("婉拒", "cta-accent", r, "decline"));
     } else {
+      if (sel) { acts.appendChild(sel); acts.appendChild(bkBtn("改時長", "cta-ok", r, "duration", sel)); }
       acts.appendChild(bkBtn("取消預約", "cta-accent", r, "cancel"));
     }
     row.appendChild(acts);
     return row;
   }
 
+  var _bkConfSeen = {};
+  function bkConflicts(row, sel, uid) {
+    if (!uid || _bkConfSeen[uid]) return;
+    _bkConfSeen[uid] = 1;
+    api("/booking-conflicts/" + encodeURIComponent(uid)).then(function (x) { return x.ok ? x.json() : null; })
+      .then(function (j) {
+        if (!j || !j.ok || !j.conflicts) return;
+        var keys = Object.keys(j.conflicts).map(Number).filter(function (n) { return !isNaN(n); }).sort(function (a, b) { return a - b; });
+        if (!keys.length) return;
+        for (var i = 0; i < sel.childNodes.length; i++) {
+          var o = sel.childNodes[i];
+          if (o && j.conflicts[String(o.value)] && !/⚠️/.test(o.textContent)) { o.textContent += " ⚠️"; o.setAttribute("data-conflict", "1"); }
+        }
+        var meta = row.querySelector(".bk-meta");
+        if (meta && !row.querySelector(".bk-conflict")) {
+          var f = j.conflicts[String(keys[0])] || {}, hhmm = "";
+          try { var d = new Date(String(f.start || "")); if (!isNaN(d.getTime())) hhmm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); } catch (e) {}
+          meta.appendChild(el("span", "bk-chip bk-conflict", "⚠️ " + keys[0] + " 分鐘起會與「" + (f.summary || "另一個行程") + "」" + (hhmm ? "（" + hhmm + "）" : "") + "重疊"));
+        }
+      }).catch(function () {});
+  }
+
   var _bkBusy = {};
-  function bkBtn(label, cls, r, action) {
+  function bkBtn(label, cls, r, action, sel) {
     var b = el("button", "cta " + cls, label);
     b.type = "button";
     if (_bkBusy[r.booking_uid]) b.disabled = true;
     b.addEventListener("click", function () {
       var nm = r.name || "這位客戶", sl = r.slot || "";
+      var mins = sel ? sel.value : "";
+      if (action === "duration" && !window.confirm(
+        "把「" + nm + "」" + sl + " 的時長改為 " + mins + " 分鐘？\n系統會更新 Google 日曆的結束時間；變長時會通知客戶，變短不通知。")) return;
       if (action === "decline" && !window.confirm(
         "婉拒「" + nm + "」" + sl + " 的預約？\n系統會取消這筆申請，並通知客戶重新安排時間。")) return;
       if (action === "cancel" && !window.confirm(
         "取消「" + nm + "」" + sl + " 這筆已確認的預約？\n系統會取消這場會議，並通知客戶預約已取消。\n客戶先前已收到確認通知，取消後可能需要另行聯繫說明。")) return;
       if (action === "confirm" && !window.confirm(
-        "確認「" + nm + "」" + sl + " 的預約？\n系統會通知客戶預約已成立，並附上時間與地點。")) return;
+        "確認「" + nm + "」" + sl + (mins ? "（" + mins + " 分鐘）" : "") + " 的預約？\n系統會通知客戶預約已成立，並附上時間與地點。")) return;
       b.disabled = true; _bkBusy[r.booking_uid] = 1;
       api("/booking-action", { method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ booking_uid: r.booking_uid, action: action })
+        body: JSON.stringify(Object.assign({ booking_uid: r.booking_uid, action: action },
+          ((action === "confirm" || action === "duration") && mins) ? { minutes: Number(mins) } : {}))
       }).then(function (x) { return x.json().catch(function () { return {}; })
           .then(function (j) { if (!x.ok || j.ok !== true) { var e = new Error(j.error || x.status); e.status = x.status; throw e; } return j; }); })
         .then(function (j) {

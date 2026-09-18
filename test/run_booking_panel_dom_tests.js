@@ -165,10 +165,12 @@ QJ.airtable.detectSchema = function () { return Promise.resolve({ fields: [], fi
 QJ.airtable.fetchRecords = function () { return Promise.resolve([]); };
 QJ.airtable.cta = function () { return Promise.resolve(); };
 QJ.airtable.fetchBookings = function () { bkFetchCalls += 1; return Promise.resolve(bkFetchData); };
-QJ.airtable.bookingAction = function (uid, action) {
-  bkActionCalls.push({ uid: uid, action: action });
+QJ.airtable.bookingAction = function (uid, action, minutes) {
+  bkActionCalls.push({ uid: uid, action: action, minutes: minutes });
   return new Promise(function (res, rej) { bkActionCtl = { resolve: res, reject: rej }; });
 };
+var bkConflictCalls = [], bkConflictData = null;
+QJ.airtable.fetchBookingConflicts = function (uid) { bkConflictCalls.push(uid); return Promise.resolve(bkConflictData); };
 /* fetchStaff 走真 fetch(/staff)—— 在 harness 裡會掛住整條 boot 鏈,拔掉它
    等同 boot 的 staffStep = Promise.resolve()。 */
 delete QJ.airtable.fetchStaff;
@@ -222,12 +224,14 @@ function settle(n) {
 function PEND(o) {
   return Object.assign({ booking_uid: "bkA", status: "pending", name: "王待確認",
     slot: "9/5（五）10:00", start: "2026-09-05T02:00:00Z", mode: "到所",
-    waited_h: 30.2, until_h: 12.5, matched: false, phone: "", notes: "", nudges: 0 }, o || {});
+    waited_h: 30.2, until_h: 12.5, matched: false, phone: "", notes: "", nudges: 0,
+    duration_min: null, default_min: 60, choices: [30, 60, 90, 120, 180] }, o || {});
 }
 function CONF(o) {
   return Object.assign({ booking_uid: "bkB", status: "confirmed", name: "陳已確認",
     slot: "9/6（六）14:00", start: "2026-09-06T06:00:00Z", mode: "電話",
-    waited_h: 2.0, until_h: 40.0, matched: true, phone: "", notes: "", nudges: 0 }, o || {});
+    waited_h: 2.0, until_h: 40.0, matched: true, phone: "", notes: "", nudges: 0,
+    duration_min: null, default_min: 30, choices: [10, 20, 30, 60] }, o || {});
 }
 function render(data) { QJ.render.renderBookings(HOST, data); return HOST; }
 function btn(host, action) { return host.querySelector('[data-bk-action="' + action + '"]'); }
@@ -507,6 +511,64 @@ function testRace() {
 /* =============================================================================
  * 5) 突變驗證
  * ========================================================================== */
+function testDuration() {
+  section("D — 時長下拉 / 改時長 / 日曆衝突（2026-09-18 同步 LINE ⏱）");
+  /* 本節用獨立的 uid（bkD1/bkD2）且**不 resolve** 動作 promise：resolve 會在
+     microtask 裡產生 toast，污染後面 A 節的 toastCalls；uid 分開則 in-flight 旗標
+     不會影響 C 節對 bkA/bkB 的斷言。 */
+  var h = render({ ok: true, pending: [PEND({ booking_uid: "bkD1" })], confirmed: [CONF({ booking_uid: "bkD2", duration_min: 20 })] });
+  var pendRow = h.querySelector(".bk-row.bk-pend"), confRow = h.querySelector(".bk-row.bk-conf");
+  var selP = pendRow.querySelector(".bk-dur"), selC = confRow.querySelector(".bk-dur");
+  check("D1 pending 列有時長下拉，選項 = 後端 choices（30/60/90/120/180）",
+        !!selP && selP.childNodes.length === 5 && selP.childNodes.map(function (o) { return o.value; }).join(",") === "30,60,90,120,180",
+        selP && selP.childNodes.map(function (o) { return o.value; }));
+  check("D2 預設值（60）預選且文字帶「（預設）」",
+        !!selP && selP.childNodes[1].selected === true && /（預設）/.test(selP.childNodes[1].textContent),
+        selP && selP.childNodes.map(function (o) { return o.textContent + (o.selected ? "*" : ""); }));
+  check("D3 confirmed 列：下拉預選帳本的 duration_min（20），並多一顆「改時長」",
+        !!selC && selC.childNodes[1].selected === true && !!confRow.querySelector('[data-bk-action="duration"]')
+        && confRow.querySelector('[data-bk-action="duration"]').textContent === "改時長",
+        selC && selC.childNodes.map(function (o) { return o.value + (o.selected ? "*" : ""); }));
+  check("D4 pending 列沒有「改時長」（改時長只對已確認）", !pendRow.querySelector('[data-bk-action="duration"]'));
+  /* 沒給 choices → 退回舊樣子（只有按鈕） */
+  var h0 = render({ ok: true, pending: [PEND({ booking_uid: "bkD1", choices: [] })], confirmed: [CONF({ booking_uid: "bkD2", choices: undefined })] });
+  check("D5 後端沒給 choices → 不畫下拉、confirmed 列沒有改時長（舊版 proxy 相容）",
+        !h0.querySelector(".bk-dur") && !h0.querySelector('[data-bk-action="duration"]'));
+  /* 點確認 → 送出 minutes = 下拉目前值 */
+  h = render({ ok: true, pending: [PEND({ booking_uid: "bkD1" })], confirmed: [CONF({ booking_uid: "bkD2", duration_min: 20 })] });
+  pendRow = h.querySelector(".bk-row.bk-pend");
+  selP = pendRow.querySelector(".bk-dur");
+  selP.value = "120";
+  bkActionCalls.length = 0;
+  fire("click", btn(h, "confirm"));
+  check("D6 ⭐ 點確認預約 → bookingAction(uid,'confirm', minutes=下拉值 120)",
+        bkActionCalls.length === 1 && bkActionCalls[0].action === "confirm" && String(bkActionCalls[0].minutes) === "120",
+        bkActionCalls);
+  confRow = h.querySelector(".bk-row.bk-conf");
+  selC = confRow.querySelector(".bk-dur");
+  selC.value = "60";
+  bkActionCalls.length = 0;
+  fire("click", confRow.querySelector('[data-bk-action="duration"]'));
+  check("D7 ⭐ 點改時長 → bookingAction(uid,'duration', minutes=60)",
+        bkActionCalls.length === 1 && bkActionCalls[0].action === "duration" && String(bkActionCalls[0].minutes) === "60",
+        bkActionCalls);
+  bkActionCalls.length = 0;
+  fire("click", btn(h, "decline"));
+  check("D8 婉拒不帶 minutes", bkActionCalls.length === 1 && bkActionCalls[0].minutes === undefined, bkActionCalls);
+  /* 衝突標記（純渲染函式） */
+  h = render({ ok: true, pending: [PEND({ booking_uid: "bkD1" })], confirmed: [] });
+  pendRow = h.querySelector(".bk-row.bk-pend");
+  var n = QJ.render.annotateBookingConflicts(pendRow, { "90": { summary: "林先生 簽約", start: "2026-09-05T03:00:00Z" }, "120": { summary: "林先生 簽約", start: "2026-09-05T03:00:00Z" } });
+  var opts = pendRow.querySelector(".bk-dur").childNodes;
+  check("D9 衝突的選項文字加 ⚠️（90/120），其餘不動", n === 2 && /⚠️/.test(opts[2].textContent) && /⚠️/.test(opts[3].textContent) && !/⚠️/.test(opts[0].textContent) && !/⚠️/.test(opts[1].textContent),
+        opts.map(function (o) { return o.textContent; }));
+  check("D10 列尾多一顆 ⚠️ chip，從最小衝突時長起算並帶對方摘要", !!pendRow.querySelector(".bk-conflict") && /90 分鐘起會與「林先生 簽約」/.test(pendRow.querySelector(".bk-conflict").textContent),
+        pendRow.querySelector(".bk-conflict") && pendRow.querySelector(".bk-conflict").textContent);
+  check("D11 衝突選項仍可選（只標記不禁用）", !opts[2].disabled);
+  check("D12 再標一次不重複（冪等）", QJ.render.annotateBookingConflicts(pendRow, { "90": {} }) === 1 && pendRow.querySelectorAll(".bk-conflict").length === 1 && (opts[2].textContent.match(/⚠️/g) || []).length === 1);
+  check("D13 空/null 衝突 → 零改動", QJ.render.annotateBookingConflicts(pendRow, null) === 0 && QJ.render.annotateBookingConflicts(pendRow, {}) === 0);
+}
+
 function mutate(name, apply, restore, assertFn) {
   apply();
   var red;
@@ -651,6 +713,7 @@ settle(8)                       // 等 boot() 的 promise 鏈跑完(計時器/�
   .then(function () {
     testWiring();
     testRender();
+    testDuration();
     inflightBtn = testClick();
     return testAsync(inflightBtn);
   })

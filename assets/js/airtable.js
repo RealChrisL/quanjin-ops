@@ -616,17 +616,26 @@
   /* 預約面板（2026-08-31）。非 2xx／網路失敗 → null，呼叫端不渲染（沿用
      _proxyGet 的既有降級契約）。 */
   function fetchBookings() { return _proxyGet("/booking-panel"); }
+  /* 日曆衝突（2026-09-18，同 LINE picker 的淡紅標記）：打開時長下拉時才查，
+     唯讀；失敗/逾時回 null → 不標記（退回固定清單）。 */
+  function fetchBookingConflicts(bookingUid) {
+    return _proxyGet("/booking-conflicts/" + encodeURIComponent(bookingUid));
+  }
 
   /* 預約動作：POST /booking-action。刻意**不走 /cta** —— 後者硬性要求
      Airtable recordId，而預約的鍵是 cal.com booking_uid，兩個命名空間實測
      29/31 不相交。後端會子行程送出人類會打的同一道指令，所以客戶端文案、
      終態守衛、exactly-once 全部沿用，前端零商業邏輯。 */
-  function bookingAction(bookingUid, action) {
+  /* 2026-09-18:`minutes`（選填）— 確認時選的時長，或對已確認的預約改時長
+     （action="duration"）。與 LINE picker 同一道指令 `確認預約 <uid> <分鐘>`。 */
+  function bookingAction(bookingUid, action, minutes) {
     var url = (QJ.proxyUrl ? QJ.proxyUrl() : "") + "/booking-action";
+    var payload = { booking_uid: bookingUid, action: action };
+    if (minutes != null && minutes !== "") payload.minutes = Number(minutes);
     return fetch(url, {
       method: "POST",
       headers: { "Authorization": "Bearer " + (QJ.proxyToken ? QJ.proxyToken() : ""), "Content-Type": "application/json", "ngrok-skip-browser-warning": "1" },
-      body: JSON.stringify({ booking_uid: bookingUid, action: action })
+      body: JSON.stringify(payload)
     }).then(function (r) {
       return r.json().catch(function () { return {}; }).then(function (j) {
         if (!r.ok || !j || j.ok !== true) { var e = new Error((j && j.error) || ("預約動作失敗 HTTP " + r.status)); e.status = r.status; throw e; }
@@ -689,6 +698,7 @@
     CLOSED_SEARCH_MAX: CLOSED_SEARCH_MAX,
     cta: cta,
     fetchStats: fetchStats, fetchBookings: fetchBookings, bookingAction: bookingAction,
+    fetchBookingConflicts: fetchBookingConflicts,
     fetchStaff: fetchStaff,
     fetchCloseReview: fetchCloseReview,
     fetchReturnedUids: fetchReturnedUids,
