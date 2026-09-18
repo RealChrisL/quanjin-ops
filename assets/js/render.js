@@ -172,7 +172,8 @@
       var hhmm = "";
       try {
         var d = new Date(String(first.start || ""));
-        if (!isNaN(d.getTime())) hhmm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2);
+        // 固定台北時區（操作者的瀏覽器可能不在 +08:00；LINE 卡同樣印台北時間）
+        if (!isNaN(d.getTime())) hhmm = d.toLocaleTimeString("zh-TW", { timeZone: "Asia/Taipei", hour12: false, hour: "2-digit", minute: "2-digit" });
       } catch (e) {}
       meta.appendChild(el("span", "bk-chip bk-conflict",
         "⚠️ " + keys[0] + " 分鐘起會與「" + (first.summary || "另一個行程") + "」" + (hhmm ? "（" + hhmm + "）" : "") + "重疊"));

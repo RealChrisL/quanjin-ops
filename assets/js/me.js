@@ -190,7 +190,7 @@
         var meta = row.querySelector(".bk-meta");
         if (meta && !row.querySelector(".bk-conflict")) {
           var f = j.conflicts[String(keys[0])] || {}, hhmm = "";
-          try { var d = new Date(String(f.start || "")); if (!isNaN(d.getTime())) hhmm = ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2); } catch (e) {}
+          try { var d = new Date(String(f.start || "")); if (!isNaN(d.getTime())) hhmm = d.toLocaleTimeString("zh-TW", { timeZone: "Asia/Taipei", hour12: false, hour: "2-digit", minute: "2-digit" }); } catch (e) {}
           meta.appendChild(el("span", "bk-chip bk-conflict", "⚠️ " + keys[0] + " 分鐘起會與「" + (f.summary || "另一個行程") + "」" + (hhmm ? "（" + hhmm + "）" : "") + "重疊"));
         }
       }).catch(function () {});

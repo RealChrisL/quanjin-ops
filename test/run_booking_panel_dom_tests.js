@@ -562,7 +562,7 @@ function testDuration() {
   var opts = pendRow.querySelector(".bk-dur").childNodes;
   check("D9 衝突的選項文字加 ⚠️（90/120），其餘不動", n === 2 && /⚠️/.test(opts[2].textContent) && /⚠️/.test(opts[3].textContent) && !/⚠️/.test(opts[0].textContent) && !/⚠️/.test(opts[1].textContent),
         opts.map(function (o) { return o.textContent; }));
-  check("D10 列尾多一顆 ⚠️ chip，從最小衝突時長起算並帶對方摘要", !!pendRow.querySelector(".bk-conflict") && /90 分鐘起會與「林先生 簽約」/.test(pendRow.querySelector(".bk-conflict").textContent),
+  check("D10 列尾多一顆 ⚠️ chip，從最小衝突時長起算、帶對方摘要與**台北**時間（03:00Z → 11:00）", !!pendRow.querySelector(".bk-conflict") && /90 分鐘起會與「林先生 簽約」（11:00）重疊/.test(pendRow.querySelector(".bk-conflict").textContent),
         pendRow.querySelector(".bk-conflict") && pendRow.querySelector(".bk-conflict").textContent);
   check("D11 衝突選項仍可選（只標記不禁用）", !opts[2].disabled);
   check("D12 再標一次不重複（冪等）", QJ.render.annotateBookingConflicts(pendRow, { "90": {} }) === 1 && pendRow.querySelectorAll(".bk-conflict").length === 1 && (opts[2].textContent.match(/⚠️/g) || []).length === 1);
