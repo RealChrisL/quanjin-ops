@@ -454,6 +454,31 @@ function test_oaChatUrl() {
   check("OA war-room encodes id (space → %20)",
         QJ.oaChatUrl("U abc").indexOf("%20") !== -1, QJ.oaChatUrl("U abc"));
 
+  // (5) 2026-11-11 黃薏任重按 4 次:me.js 記住 90 秒內成功操作,重繪時不把剛按過的卡插回待辦。
+  //     同 OA drift 的「抽函式進 sandbox」模式:抽 _recent/RECENT_MS/recentAct 與 render 的過濾邏輯。
+  (function () {
+    var meSrc5 = fs.readFileSync(path.join(__dirname, "..", "assets", "js", "me.js"), "utf8");
+    var m1 = meSrc5.match(/var _recent = \{\};[\s\S]*?function recentAct\(id\) \{[^\n]*\n/);
+    check("RECENT: me.js carries _recent/RECENT_MS/recentAct", !!m1, "regex miss");
+    check("RECENT: doCta success records _recent[id] with the action", /_recent\[id\] = \{ ts: Date\.now\(\), action: body && body\.action \};/.test(meSrc5));
+    check("RECENT: render drops recently CLOSED cards from active", /recentAct\(c\.id\) !== "close"/.test(meSrc5));
+    check("RECENT: render keeps recently CONTACTED/reminder cards OUT of 待辦 (todoNow)", /function todoNow\(c\) \{ return isTodo\(c\.fields\) && !QUIET\[recentAct\(c\.id\)\]; \}/.test(meSrc5) && /QUIET = \{ contacted: 1, set_interval: 1, set_next_reminder: 1 \}/.test(meSrc5));
+    check("RECENT: a tap while another CTA is in flight now toasts instead of being silently dropped", /if \(_ctaInProgress\) \{ toast\("上一個動作還在處理，請稍候再按", "warn"\); return; \}/.test(meSrc5));
+    if (m1) {
+      var sb = { Date: Date };
+      vm.createContext(sb);
+      vm.runInContext(m1[0] + "\nthis.recentAct = recentAct; this._recent = _recent; this.RECENT_MS = RECENT_MS;", sb);
+      sb._recent["recA"] = { ts: Date.now(), action: "contacted" };
+      sb._recent["recB"] = { ts: Date.now() - 200000, action: "contacted" };
+      check("RECENT: fresh contacted → 'contacted'", sb.recentAct("recA") === "contacted");
+      check("RECENT: 200 s old → expired → null and purged", sb.recentAct("recB") === null && !("recB" in sb._recent));
+      check("RECENT: unknown id → null", sb.recentAct("recZ") === null);
+      check("RECENT: window is 90 s", sb.RECENT_MS === 90000);
+    }
+    var meHtml = fs.readFileSync(path.join(__dirname, "..", "me.html"), "utf8");
+    check("RECENT: me.html bumped me.js?v= so phones refetch the fix", /me\.js\?v=20261111a/.test(meHtml));
+  })();
+
   // (4) DRIFT pin — extract me.js's self-contained oaChatUrl + OA_BOT_ID, eval in a
   // fresh sandbox (me.js is an IIFE that assumes a browser DOM, so we cannot load
   // it wholesale — mirror the harness vm pattern and eval just the two lines).

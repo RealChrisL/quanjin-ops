@@ -282,11 +282,13 @@
   }
 
   function render(cases) {
-    var active = cases.filter(function (c) { return (c.fields["進度狀態"] || "") !== "已完成"; });
+    var active = cases.filter(function (c) { return (c.fields["進度狀態"] || "") !== "已完成" && recentAct(c.id) !== "close"; });
     var closed = cases.filter(function (c) { return (c.fields["進度狀態"] || "") === "已完成" && c.fields["結案日期"]; });
     active.sort(function (a, b) { return idleHours(b.fields) - idleHours(a.fields); });  // 最久沒動的在上
-    var todo = active.filter(function (c) { return isTodo(c.fields); });
-    var rest = active.filter(function (c) { return !isTodo(c.fields); });
+    var QUIET = { contacted: 1, set_interval: 1, set_next_reminder: 1 };
+    function todoNow(c) { return isTodo(c.fields) && !QUIET[recentAct(c.id)]; }
+    var todo = active.filter(todoNow);
+    var rest = active.filter(function (c) { return !todoNow(c); });
     renderHead(active.length, todo.length);
     clear(list);
 
@@ -470,14 +472,21 @@
   // 同一時間只允許一個動作在傳送(單人操作;慢網路下防雙觸/雙送)。
   // errMsg（可選）：失敗且伺服器沒給錯誤訊息時的替代文案（追蹤提醒用「更新失敗，請重試」）。
   var _ctaInProgress = false;
+  // 2026-11-11(黃薏任 3 分鐘內同一案按了 4 次已聯繫):按成功後伺服器端的全表快照要 15–30 秒才更新,
+  // 30 秒輪詢用舊快照重繪會把剛按過的卡插回「本日待辦」,同仁以為沒成功就再按。這裡記住 90 秒內的
+  // 成功操作:已聯繫/提醒設定 → 重繪時不進待辦;結案 → 重繪時整張不出現。伺服器真相到了自然一致。
+  var _recent = {};
+  var RECENT_MS = 90000;
+  function recentAct(id) { var r = _recent[id]; if (!r) return null; if (Date.now() - r.ts > RECENT_MS) { delete _recent[id]; return null; } return r.action; }
   function doCta(id, body, okMsg, after, errMsg) {
-    if (_ctaInProgress) return;
+    if (_ctaInProgress) { toast("上一個動作還在處理，請稍候再按", "warn"); return; }
     _ctaInProgress = true;
     api("/cta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
       .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
       .then(function (res) {
         _ctaInProgress = false;
         if (res.ok && res.j && res.j.ok) {
+          _recent[id] = { ts: Date.now(), action: body && body.action };
           toast("✓ " + okMsg, "ok");
           if (typeof after === "function") { after(); return; }
           // 樂觀移除這張卡 → 同事立刻看到「動作成功」,不必等伺服器全表重抓;
